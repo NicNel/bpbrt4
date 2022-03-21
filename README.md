@@ -1,7 +1,7 @@
 # bpbrt4 for Windows
 ## pbrt-v4 render engine/exporter add-on for Blender
 (tested in Blender 2.9)
-![Header Render](images/table.png)
+![Header Render](images/table2.jpeg)
 ### How to use
 - set path to pbrt-v4 bin folder (under render properties tab)
 - set path to project (where to export) folder (under render properties tab)
