@@ -1,0 +1,29 @@
+AttributeBegin
+    Transform [ 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 2.846911 0.000000 1.102965 1.000000 ]
+    NamedMaterial "plane_mat"
+    Shape "plymesh" "string filename" [ "geometry/Plane-plane_mat.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 1.000000 1.000000 ]
+    NamedMaterial "preview_mat"
+    Shape "plymesh" "string filename" [ "geometry/Sphere-preview_mat.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ -7.498818 -0.000001 0.000000 0.000000 0.000000 -0.000001 -7.498818 0.000000 0.000001 -7.498818 0.000001 0.000000 -2.698006 8.000000 5.616893 1.000000 ]
+    AreaLightSource "diffuse"
+        "rgb L" [ 4.0 4.0 4.0 ]
+    NamedMaterial "light_mat"
+    Shape "plymesh" "string filename" [ "geometry/Plane.002-light_mat.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ 7.498818 0.000000 0.000000 0.000000 0.000000 0.000001 -7.498818 0.000000 0.000000 7.498818 0.000001 0.000000 -2.414573 -8.000000 5.616893 1.000000 ]
+    AreaLightSource "diffuse"
+        "rgb L" [ 0.15195854008197784 0.22971513867378235 0.40000003576278687 ]
+    NamedMaterial "light_mat2"
+    Shape "plymesh" "string filename" [ "geometry/Plane.003-light_mat2.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ 0.584750 0.000000 0.000000 0.000000 0.000000 0.584750 0.000000 0.000000 0.000000 0.000000 0.584750 0.000000 0.000000 0.000000 1.000000 1.000000 ]
+    NamedMaterial "Material.007"
+    Shape "plymesh" "string filename" [ "geometry/Sphere.001-Material.007.ply" ]
+AttributeEnd
