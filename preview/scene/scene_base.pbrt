@@ -1,0 +1,30 @@
+
+#Exported by bpbrt Blender Exporter
+Scale -1 1 1 
+#avoid the 'flipped image' bug..
+LookAt	-7.0 0.0 1.0
+	-6.0 -4.371138828673793e-08 1.0
+	-4.371138828673793e-08 1.910685676922942e-15 1.0
+Camera "perspective"
+    "float fov" [22.895194130645738]
+    
+#Film "rgb"
+#"string filename" [ "D:/PROGRAMS/blender-2.90.0-f319eec88186-windows64/2.90/scripts/addons/bpbrt/preview/render.exr" ]
+#"integer yresolution" [ 108 ]
+#"integer xresolution" [ 192 ]
+
+Integrator "path"
+    "integer maxdepth" [ 6 ]
+Sampler "halton"
+    "integer pixelsamples" [ 2 ]
+WorldBegin
+AttributeBegin
+Rotate 0.0 1 0 0
+Rotate 0.0 0 1 0
+Rotate 180.00000500895632 0 0 1
+    LightSource "infinite"
+       "rgb L" [ 0.0 0.0 0.0 ]
+       "float scale" [ 0.0 ]
+AttributeEnd
+Include "materials.pbrt"
+Include "geometry.pbrt"

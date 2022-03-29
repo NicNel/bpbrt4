@@ -1,0 +1,12 @@
+Film "rgb"
+    "string filename" [ "F:/Spectral/blender-2.92.0-windows64/2.92/scripts/addons/bpbrt/preview/preview.exr" ]
+    "integer yresolution" [ 152 ]
+    "integer xresolution" [ 244 ]
+    "string sensor" "canon_eos_100d"
+    "float iso" 150
+    "float whitebalance" 6500
+Camera "perspective"
+    "float fov" [15.0]
+Sampler "halton"
+    "integer pixelsamples" [ 256 ]
+ColorSpace "srgb"
