@@ -3,6 +3,7 @@
 (tested in Blender 2.9)
 ![Header Render](images/teaser.png)
 ### How to use
+- set up the scene
 - set path to pbrt-v4 bin folder (under render properties tab)
 - set path to project (where to export) folder (under render properties tab)
 - hit render button
