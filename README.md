@@ -1,4 +1,4 @@
-# bpbrt4 for Windows
+# bpbrt4 for Windows (Early Release)
 ## pbrt-v4 render engine/exporter add-on for Blender
 (tested in Blender 2.9)
 ![Header Render](images/r0_light_crop.png)
