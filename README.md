@@ -9,3 +9,4 @@
 - hit render button
 
 Render progress and info messages are printed the console (enable the console under Window -> Toggle System Console).
+![Header Render](images/ws_preview.png)
