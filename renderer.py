@@ -5,6 +5,7 @@ import math
 
 from .export.geometry import GeometryExporter
 from .utils import util
+from .preview.prepare import preparePreview
 
 import threading
 import time
@@ -23,6 +24,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     is_busy = False
     bl_use_eevee_viewport = True
     #bl_use_shading_nodes_custom = True
+    
+    def __init__(self):
+        pass
+    
+    def __del__(self):
+        pass
     
     def view_draw(self, context, depsgraph):
         region = context.region
@@ -55,15 +62,16 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         else:
             self.FinalRender(depsgraph)
         #free
-        self.free_blender_memory()
+        #self.free_blender_memory()
     
     def update_frame_th(self):
         while True:
             print("\nUpdate frame...\n")
-            result = self.get_result()
+            #result = self.get_result()
             iname = 'render_{}'.format(bpy.context.scene.pbrtv4.pbrt_integrator)
             filename = util.switchpath(bpy.context.scene.pbrtv4.pbrt_project_dir)+'/'+'{}.exr'.format(iname)
-            result.layers[0].load_from_file(filename)
+            #result.layers[0].load_from_file(filename)
+            self.LoadResult(filename, props["scale_x"], props["scale_y"])
             time.sleep(5)
     
     def FinalRender(self, depsgraph):
@@ -113,24 +121,20 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         self.size_y = int(scene.render.resolution_y * scale)
         
         if max(self.size_x,  self.size_y) >= 96:
-            print (self.size_x, self.size_y)
-            #mat
-            mat_name = "preview_mat"
-            mat = bpy.context.view_layer.objects.active.active_material
-            materialData = ''.join(GeometryExporter.export_mat_get(mat, mat_name))
-            #get object
-            #GeometryExporter.export_mat_get(object_instance, matid)
-            #get mat
-            currDir = os.path.abspath(os.path.dirname(__file__))
-            #print (currDir)
-            sceneSettingsFile =os.path.join(currDir, "preview", "preview_settings.pbrt")
+            print("Start preview render")
+            props = {}
+            self.getProps(props)
+            preparePreview(props["previewFolder"])
             
-            texturesFolder = os.path.join(bpy.context.scene.pbrtv4.pbrt_project_dir, "textures")
-            if not os.path.exists(texturesFolder):
-                os.makedirs(texturesFolder)
+            bsdfs = 'bsdfs.xml'
+            geometry = "geometry.xml"
+            bsdfs_base = 'bsdfs_base.pbrt'
+            geometry_base = 'geometry_base.pbrt'
+            #settings_base = 'settings_base.xml'
             
+            #-----------------------------------
             # Compute film dimensions
-            filename = os.path.join(currDir, "preview", 'preview.exr')
+            filename = os.path.join(props["previewFolder"], 'preview.exr')
             filmtype = "rgb"
             #export_result ='Film "gbuffer"\n'
             #export_result ='Film "rgb"\n'
@@ -163,32 +167,44 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             #colorspace
             colorSpace = bpy.context.scene.pbrtv4.pbrt_ColorSpace
             export_result +='ColorSpace "{}"\n'.format(colorSpace)
+            #-----------------------------------
             
-            #test write settings file
-            with open(sceneSettingsFile, 'w') as f:
-                data = export_result
-                f.write(data)
-                f.close()
-            #mat write settings file
-            matFile = os.path.join(currDir, "preview", "preview_mat.pbrt")
-            with open(matFile, 'w') as f:
-                data = materialData
-                f.write(data)
+            #test write file
+            settingsFile = os.path.join(props["previewFolder"], 'settings.pbrt')
+            with open(settingsFile, 'w') as f:
+                f.write(export_result)
                 f.close()
             
-            #run render
-            sceneFile = os.path.join(currDir, "preview", "scene.pbrt")
-            pbrtExecPath = util.switchpath(bpy.context.scene.pbrtv4.pbrt_bin_dir)+'/'+'pbrt.exe'
-            #start render
-            if bpy.context.scene.pbrtv4.pbrt_compute_mode == 'CPU':
-                cmd = [ pbrtExecPath, sceneFile ]
-            else:
-                cmd = [ pbrtExecPath, "--gpu", sceneFile ]
-            util.runCmd(cmd)
-            #---------------
-            result = self.get_result()
-            result.layers[0].load_from_file(filename)
-            self.is_busy = False
+            #export bsdf
+            mat_name = "preview_mat"
+            mat = bpy.context.view_layer.objects.active.active_material
+            materialData = ''.join(GeometryExporter.export_mat_get(mat, mat_name))
+            bsdfFile = os.path.join(props["previewFolder"], "preview_bsdf.pbrt")
+            
+            with open(bsdfFile, 'w') as f:
+                f.write(materialData)
+                f.close()
+            props["scale_x"] = self.size_x
+            props["scale_y"] = self.size_y
+            self.RunPreviewRender(props, filename)
+        return None
+            
+    def RunPreviewRender(self, props, filename):
+        #run render
+        sceneFile = os.path.join(props["previewFolder"], "scene.pbrt")
+        pbrtExecPath = util.switchpath(bpy.context.scene.pbrtv4.pbrt_bin_dir)+'/'+'pbrt.exe'
+        #start render
+        if bpy.context.scene.pbrtv4.pbrt_compute_mode == 'CPU':
+            cmd = [ pbrtExecPath, sceneFile ]
+        else:
+            cmd = [ pbrtExecPath, "--gpu", sceneFile ]
+        util.runCmd(cmd)
+        #---------------
+        #result = self.get_result()
+        #<3.0
+        #result.layers[0].load_from_file(filename)
+        #result.load_from_file(filename)
+        self.LoadResult(filename, props["scale_x"], props["scale_y"])
         
     def getProps(self, props):
         props['pbrt_scene_only'] = bpy.context.scene.pbrtv4.pbrt_scene_only
@@ -205,6 +221,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         props['pbrt_compute_mode'] = bpy.context.scene.pbrtv4.pbrt_compute_mode
         props['pbrt_project_dir'] = bpy.context.scene.pbrtv4.pbrt_project_dir
+        props["previewFolder"] = os.path.join(props['pbrt_project_dir'], "preview")
+        
         props['pbrt_compute_mode'] = bpy.context.scene.pbrtv4.pbrt_compute_mode
         props['pbrt_film_type'] = bpy.context.scene.pbrtv4.pbrt_film_type
         props['pbrt_ColorSpace'] = bpy.context.scene.pbrtv4.pbrt_ColorSpace
@@ -253,12 +271,11 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         sceneData += 'Include "geometry.pbrt"\n'
         
         sceneFolder = props['pbrt_project_dir']
-        sceneFile ="{}{}".format(props['pbrt_project_dir'], 'scene.pbrt')  
+        sceneFile = os.path.join(props['pbrt_project_dir'], "scene.pbrt")
         
         #test write file
         with open(sceneFile, 'w') as f:
-            data = sceneData
-            f.write(data)
+            f.write(sceneData)
             f.close()
     
     def exportLights(self):
@@ -522,6 +539,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         sx = int(scene.render.resolution_x * scale)
         sy = int(scene.render.resolution_y * scale)
         
+        props["scale_x"] = sx
+        props["scale_y"] = sy
+        
         filename = props['pbrt_rendered_file']
         filmtype = props['pbrt_film_type']
         #export_result ='Film "gbuffer"\n'
@@ -602,11 +622,18 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
         cmd = [ itoolExecPath, "makesky", "--albedo", str(albedo), "--elevation", str(elevation), "--outfile", file, "--turbidity", str(turbidity), "--resolution", str(res)]
         util.runCmd(cmd)
+        
     def SplitGbuffer(self, props, file, ext):
         itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
         cmd = [ itoolExecPath, "split-gbuffer", file, "--ext", ext]
         #cmd = [ itoolExecPath, "split-gbuffer", file, "--outpath", folder]
         util.runCmd(cmd)
+        
+    def LoadResult(self, file, sx, sy):
+        result = self.begin_result(0, 0, sx, sy)
+        layer = result.layers[0]
+        layer.load_from_file(file)
+        self.end_result(result)
     
     def RunRender(self, props, depsgraph, sceneFile):
         # Compute pbrt executable path
@@ -630,19 +657,22 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 if ext == "exr":
                     denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoised")
                     self.DenoiseOptix(props, outImagePath, denoised)
-                    result = self.get_result()
-                    result.layers[0].load_from_file(denoised)
+                    #result = self.get_result()
+                    #result.layers[0].load_from_file(denoised)
+                    self.LoadResult(denoised, props["scale_x"], props["scale_y"])
                 elif ext=="pfm": #oidn
-                    self.add_pass("Albedo", 4, "RGBA")
-                    self.add_pass("Normal", 4, "RGBA")
+                    #self.add_pass("Albedo", 4, "RGBA")
+                    #self.add_pass("Normal", 4, "RGBA")
                     self.SplitGbuffer(props, outImagePath, ext)
                     beauty = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_0",ext)
                     albedo = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_1",ext)
                     normal = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_2",ext)
                     denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoisedOidn")
                     self.DenoiseExternalOIDN(props, beauty, albedo, normal, denoised)
-                    result = self.get_result()
-                    result.layers[0].load_from_file(denoised)
+                    
+                    #result = self.get_result()
+                    #result.layers[0].load_from_file(denoised)
+                    self.LoadResult(denoised, props["scale_x"], props["scale_y"])
             else:
                 #scene = depsgraph.scene
                 active_view = self.active_view_get()
@@ -712,8 +742,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             
         else:
             outImagePath = props['pbrt_rendered_file']
-            result = self.get_result()
-            result.layers[0].load_from_file(outImagePath)
+            #result = self.get_result()
+            #result.layers[0].load_from_file(outImagePath)
+            self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
          
     def DenoiseExternal(self, props, beauty, albedo, normal, result):
         denoiserExecPath = util.switchpath(props['pbrt_denoiser_dir'])+'/'+'Denoiser.exe'
@@ -758,8 +789,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         #outImagePath = os.path.join(outDir, "pbrt.exr")
         #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'render.exr'
         #bpy.ops.image.open(filepath=outImagePath)
-        result = self.get_result()
-        result.layers[0].load_from_file(outImagePath)
+        #result = self.get_result()
+        #result.layers[0].load_from_file(outImagePath)
+        self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
     
     def RunDenoiser(self, props):
         #imgtool denoise-optix noisy.exr --outfile denoised.exr
