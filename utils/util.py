@@ -170,9 +170,7 @@ def spectral_color(r, g, b, l): # RGB <0,1> <- lambda l <400,700> [nm]
     elif (l>=475.0)and(l<560.0):
         t=(l-475.0)/(560.0-475.0)
         b=0.7-(t)+(0.30*t*t)
-# ------------------------------------
-# Generic utilities and settings.
-# ------------------------------------
+        
 def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
     def draw(self, context):
         self.layout.label(message)
@@ -194,8 +192,6 @@ def filter_params(params):
     return filter_list
 
 def realpath(path):
-    """Resolve a relative Blender path to a real filesystem path"""
-
     if path.startswith('//'):
         path = bpy.path.abspath(path)
     else:
@@ -207,7 +203,6 @@ def realpath(path):
     return path
     
 def switchpath(path):
-    """Resolve a relative Blender path to a real filesystem path"""
     p = pathlib.PureWindowsPath(path)
     return p.as_posix()
 
@@ -217,9 +212,7 @@ def getFileName(file):
     #return name[0]
 
     return Path(file).stem
-# ------------------------------------
-# Scene export utilities.
-# ------------------------------------
+
 def Lerp(a, b, t):
     return a-(a*t)+(b*t)
 
@@ -296,52 +289,10 @@ def get_focal_distance(camera):
 
     return focal_distance
 
-
-# ------------------------------------
-# Object / instance utilities.
-# ------------------------------------
-
-def is_object_deforming(ob):
-    deforming_mods = {'ARMATURE', 'MESH_SEQUENCE_CACHE', 'CAST', 'CLOTH', 'CURVE', 'DISPLACE',
-                      'HOOK', 'LATTICE', 'MESH_DEFORM', 'SHRINKWRAP', 'EXPLODE',
-                      'SIMPLE_DEFORM', 'SMOOTH', 'WAVE', 'SOFT_BODY',
-                      'SURFACE', 'MESH_CACHE', 'FLUID_SIMULATION',
-                      'DYNAMIC_PAINT'}
-    if ob.modifiers:
-        for mod in ob.modifiers:
-            if mod.type in deforming_mods:
-                return True
-
-    if ob.data and hasattr(ob.data, 'shape_keys') and ob.data.shape_keys:
-        return True
-
-    return False
-
-# ------------------------------------
-# Simple timer for profiling.
-# ------------------------------------
-
-class Timer(object):
-    """
-    Simple timer for profiling operations.
-    """
-
-    def __init__(self):
-        self.start()
-
-    def start(self):
-        self.__start = datetime.datetime.now()
-
-    def stop(self):
-        self.__end = datetime.datetime.now()
-
-    def elapsed(self):
-        delta = self.__end - self.__start
-        return delta.total_seconds()
-
-# ------------------------------------
-# Blender addon.
-# ------------------------------------
+def createFolder(folder):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    return folder
 
 def register():
     pass
