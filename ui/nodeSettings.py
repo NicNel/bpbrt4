@@ -371,6 +371,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
         SigmaTexture_node = self.inputs.new('NodeSocketFloat', "Sigma Texture")
         #SigmaTexture_node.hide_value = True
         SheenTexture_node = self.inputs.new('NodeSocketFloat', "Sheen")
+        SheenTexture_node.default_value = 1.5
         
         SheenTexture_node = self.inputs.new('NodeSocketColor', "Sheen Color Texture")
         SheenTexture_node.default_value = [1.0, 1.0, 1.0, 1.0]
