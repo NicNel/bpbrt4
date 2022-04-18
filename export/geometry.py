@@ -165,7 +165,7 @@ class GeometryExporter:
             curNode.name = export_name
     
     @staticmethod
-    def export_mat_get(mat, export_name):
+    def export_mat_get_old(mat, export_name):
         ID = 0
         OutputNode = None
         ExportedNodes = []
@@ -194,6 +194,38 @@ class GeometryExporter:
             volume =  volume_node_link.from_node
             #volume.label = export_name+"_volume"
             volume.Backprop(ExportedNodes, materialData)
+        return materialData
+    
+    @staticmethod
+    def export_mat_get(mat, export_name):
+        materialData = []
+        OutputNode = mat.node_tree.nodes.get('Material Output')
+        input = OutputNode.inputs[0] #shader input
+        if input.is_linked:
+            node_link = input.links[0]
+            curNode =  node_link.from_node
+            ID = 0
+            #OutputNode = None
+            ExportedNodes = []
+            for node in mat.node_tree.nodes:
+                if hasattr(node, 'isPbrtv4TreeNode'):
+                    node.setId(mat.name, ID)
+                    ID+=1
+            if hasattr(curNode, 'isPbrtv4TreeNode'):
+                #set material name instead of generated
+                if hasattr(curNode, 'isPbrtv4Emitter'):
+                    curNode.label = export_name
+                    curNode.to_dict(ExportedNodes, materialData)
+                    emData[export_name] = curNode.em_to_dict(ExportedNodes, materialData, "area_em_"+export_name)
+                else:
+                    curNode.label = export_name
+                    curNode.Backprop(ExportedNodes, materialData)
+            else:
+                print("error: ", mat.name, " not valid pbrtV4 bsdf")
+                GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
+        else:
+            print("error: ", mat.name, " not valid pbrtV4 bsdf")
+            GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
         return materialData
             
     def export_mat(self, object_instance, matid, abs_path):
