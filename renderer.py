@@ -400,8 +400,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             if cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "perspective":
                 export_result+='Camera "perspective"\n'
                 export_result+='    "float fov" [%s]\n' % (fov)
-                if cam_ob.data.clip_start>0.001:
-                    export_result+='    "float zNear" [%s]\n' % (cam_ob.data.clip_start)
+                #if cam_ob.data.clip_start>0.001:
+                #    export_result+='    "float zNear" [%s]\n' % (cam_ob.data.clip_start)
                 #shift camera lens
                 
                 shiftX = cam_ob.data.shift_x/100.0
