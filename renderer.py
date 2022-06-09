@@ -213,6 +213,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         props['pbrt_sampler'] = bpy.context.scene.pbrtv4.pbrt_sampler
         props['pbrt_integrator'] = bpy.context.scene.pbrtv4.pbrt_integrator
         props['pbrt_accelerator'] = bpy.context.scene.pbrtv4.pbrt_accelerator
+        props['pbrt_bvh_maxnodeprims'] = bpy.context.scene.pbrtv4.pbrt_bvh_maxnodeprims
+        props['pbrt_bvh_splitmethod'] = bpy.context.scene.pbrtv4.pbrt_bvh_splitmethod
+        
         #pixel filter
         props['pbrt_pfilter_type'] = bpy.context.scene.pbrtv4.pbrt_pfilter_type
         props['pbrt_pfilter_xradius'] = bpy.context.scene.pbrtv4.pbrt_pfilter_xradius
@@ -475,6 +478,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             export_result +='    "float maxdistance" [ {} ]\n'.format(10)
         elif props['pbrt_integrator'] == "RAY":
             export_result +="Integrator {}\n".format('"ray"')
+        elif props['pbrt_integrator'] == "MLT":
+            export_result +="Integrator {}\n".format('"mlt"')
         else :
             export_result +="Integrator {}\n".format('"bdpt"')
             export_result +='    "integer maxdepth" [ {} ]\n'.format(props['pbrt_max_depth'])
@@ -494,6 +499,10 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         export_result =""
         if not props['pbrt_accelerator'] == "none":
             export_result +='Accelerator "{}"\n'.format(props['pbrt_accelerator'])
+            if props['pbrt_accelerator'] == "bvh":
+                export_result +='    "integer maxnodeprims" [ {} ]\n'.format(props['pbrt_bvh_maxnodeprims'])
+                export_result +='    "string splitmethod" "{}"\n'.format(props['pbrt_bvh_splitmethod'])
+                
         return export_result
         
     def export_PixelFilter(self, props):
@@ -636,6 +645,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         self.end_result(result)
     
     def RunRender(self, props, depsgraph, sceneFile):
+        #self.test_break()
         # Compute pbrt executable path
         pbrtExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'pbrt.exe'
         file = sceneFile    
@@ -644,6 +654,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             cmd = [ pbrtExecPath, '--write-partial-images', file ]
         else:
             cmd = [ pbrtExecPath, "--gpu", '--write-partial-images', file ]
+            if props['pbrt_image_server'] == "GLFW":
+                cmd = [ pbrtExecPath, "--gpu", '--interactive', file ]
         util.runCmd(cmd)
         
         if props['pbrt_film_type'] == 'gbuffer':

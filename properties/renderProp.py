@@ -61,6 +61,7 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
     pbrt_image_server: bpy.props.EnumProperty(name="pbrt_image_server",
                                           description="Display image in",
                                           items=[('EDITOR', "Image Editor", "Image Editor"),
+                                                 ('GLFW', "Interactive", "Interactive (GLFW)"),
                                                  ('TEV', "Tev", "Tev")],
                                           default='EDITOR')
     pbrt_compute_mode: bpy.props.EnumProperty(name="pbrt_compute_mode",
@@ -82,6 +83,7 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
                                                  ("LIGHTPATH", "lightpath", "Light Path Integrator"),
                                                  ("AO", "AmbientOcclusion", "Ao Integrator"),
                                                  ("RAY", "ray", "Ray Integrator"),
+                                                 ("MLT", "mlt", "Mlt Integrator"),
                                                  ("BDPT", "bdpt", "BDPT Integrator")],
                                           default='PATH')
     
@@ -99,13 +101,27 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
     pbrt_accelerator: bpy.props.EnumProperty(name="pbrt_accelerator",
                                           description="pbrt Accelerator",
                                           items=[('bvh', "bvh", "bvh accelerator"),
-                                                 ('uniform', "uniform", "uniform accelerator"),
-                                                 ('power', "power", "power accelerator"),
-                                                 ('exhaustive', "exhaustive", "exhaustive accelerator"),
+                                                 ('kdtree', "kdtree", "kdtree accelerator"),
+                                                 #('uniform', "uniform", "uniform accelerator"),
+                                                 #('power', "power", "power accelerator"),
+                                                 #('exhaustive', "exhaustive", "exhaustive accelerator"),
                                                  ('none', "none", "no accelerator")#actually bvh by default
                                                  ],
                                           default='none')
-                                          
+    pbrt_bvh_maxnodeprims: bpy.props.IntProperty(name="pbrt_bvh_maxnodeprims",
+                                          description="maxnodeprims",
+                                          default=4)
+    pbrt_bvh_splitmethod: bpy.props.EnumProperty(
+        name="pbrt_bvh_splitmethod",
+        description="splitmethod",
+        items=[
+            ("sah", "sah", "sah"),
+            ("equal", "equal", "equal"),
+            ("hlbvh", "hlbvh", "hlbvh"),
+            ("middle", "middle", "middle")],
+            default = "sah"
+    )
+    
     pbrt_pfilter_xradius: bpy.props.FloatProperty(name="pbrt_pfilter_xradius",
                                                description="pbrt pixel filter xradius",
                                                min=0,

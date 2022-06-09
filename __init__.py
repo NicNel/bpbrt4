@@ -1,6 +1,6 @@
 bl_info = {
     "name": "PBRTV4_Exporter",
-    "author": "nel",
+    "author": "NicNel",
     "version": (0, 0),
     "blender": (2, 80, 0),
     "category": "Render",
