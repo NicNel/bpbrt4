@@ -165,38 +165,6 @@ class GeometryExporter:
             curNode.name = export_name
     
     @staticmethod
-    def export_mat_get_old(mat, export_name):
-        ID = 0
-        OutputNode = None
-        ExportedNodes = []
-        materialData = []
-        for node in mat.node_tree.nodes:
-            if hasattr(node, 'isPbrtv4TreeNode'):
-                node.setId(mat.name, ID)
-                ID+=1
-                #print(node.name)
-            if node.name == 'Material Output':
-                OutputNode = node
-        #add if
-        input = OutputNode.inputs[0] #shader input
-        node_link = input.links[0]
-        curNode =  node_link.from_node
-        if hasattr(curNode, 'isPbrtv4TreeNode'):
-            #set material name instead of generated
-            curNode.label = export_name
-            curNode.Backprop(ExportedNodes, materialData)
-        else:
-            GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
-        #export medium
-        volume_input = OutputNode.inputs[1] #shader volume
-        if volume_input.is_linked:
-            volume_node_link = volume_input.links[0]
-            volume =  volume_node_link.from_node
-            #volume.label = export_name+"_volume"
-            volume.Backprop(ExportedNodes, materialData)
-        return materialData
-    
-    @staticmethod
     def export_mat_get(mat, export_name):
         materialData = []
         OutputNode = mat.node_tree.nodes.get('Material Output')
@@ -214,11 +182,11 @@ class GeometryExporter:
             if hasattr(curNode, 'isPbrtv4TreeNode'):
                 #set material name instead of generated
                 if hasattr(curNode, 'isPbrtv4Emitter'):
-                    curNode.label = export_name
+                    curNode.pbrtv4NodeID = export_name
                     curNode.to_dict(ExportedNodes, materialData)
                     emData[export_name] = curNode.em_to_dict(ExportedNodes, materialData, "area_em_"+export_name)
                 else:
-                    curNode.label = export_name
+                    curNode.pbrtv4NodeID = export_name
                     curNode.Backprop(ExportedNodes, materialData)
             else:
                 print("error: ", mat.name, " not valid pbrtV4 bsdf")
@@ -242,12 +210,12 @@ class GeometryExporter:
         if volume_input.is_linked:
             volume_node_link = volume_input.links[0]
             volume =  volume_node_link.from_node
-            #volume.label = export_name+"_volume"
+            #volume.pbrtv4NodeID = export_name+"_volume"
             medium_id ="{}::{}".format(object_instance.object.name, matid)
             volume.setId(mat.name, medium_id)
-            #volume.label = "{}::{}".format(volume.label, object_instance.object.name) #export medium for each part
+            #volume.pbrtv4NodeID = "{}::{}".format(volume.pbrtv4NodeID, object_instance.object.name) #export medium for each part
             volume.Backprop(outInfo, self.materialData)
-            #outInfo.append(volume.label)
+            #outInfo.append(volume.pbrtv4NodeID)
             #return outInfo
             
         #export displacement
@@ -280,7 +248,7 @@ class GeometryExporter:
             curNode =  node_link.from_node
             if hasattr(curNode, 'isPbrtv4TreeNode'):
                 #set material name instead of generated
-                curNode.label = mat.name
+                curNode.pbrtv4NodeID = mat.name
                 curNode.Backprop(ExportedNodes, self.materialData)
             else:
                 #not bpbrt material
@@ -644,7 +612,7 @@ class GeometryExporter:
                     self.lightsData.append(export_spot_light(evaluated_obj))
                     print("SPOT LIGHT OBJECT", evaluated_obj.data.type)
                 else:
-                    print("LIGHT OBJECT", evaluated_obj.data.type)
+                    print("LIGHT OBJECT", evaluated_obj.data.type, "DOESN'T SUPPURTED")
             elif object_type == 'CAMERA':
                 print ("export object: ", evaluated_obj.name, " skip camera")
                 #export_camera(context, object_instance, b_scene, self.export_ctx)#TODO: investigate multiple scenes and multiple cameras at same time

@@ -30,7 +30,12 @@ class PBRTV4_RENDER_PT_sampling(RenderButtonsPanel, Panel):
         layout.prop(asr_scene_props, "pbrt_integrator", text="Integrator")
         
         layout.prop(asr_scene_props, "pbrt_accelerator", text="Accelerator")
-        
+        if asr_scene_props.pbrt_accelerator == 'bvh':
+            col = layout.column(align=True)
+            #col.alignment  = 'CENTER'
+            col.prop(asr_scene_props, "pbrt_bvh_maxnodeprims", text="maxnodeprims")
+            col.prop(asr_scene_props, "pbrt_bvh_splitmethod", text="splitmethod")
+            
         if asr_scene_props.pbrt_integrator == 'PATH':
             col = layout.column(align=True)
             col.prop(asr_scene_props, "pbrt_sampler", text="Sampler")

@@ -13,7 +13,9 @@ import subprocess
 from pathlib import Path
 import numpy as np
 
-image_extensions = ('jpg', 'png', 'tif', 'exr', 'bmp', 'tga', 'hdr', 'dpx', 'psd', 'gif', 'jp2')
+#stop process
+import signal
+from subprocess import check_output
 
 class DispInfo(object): #displacement information parameters
     def __init__(self, _name):
@@ -52,11 +54,9 @@ class DispInfo(object): #displacement information parameters
         
 def safe_register_class(cls):
     try:
-        #logger.debug("[appleseed] Registering class {0}...".format(cls))
         bpy.utils.register_class(cls)
     except Exception as e:
         print ("ERROR: Failed to register class {0}: {1}".format(cls, e))
-        #logger.error("[appleseed] ERROR: Failed to register class {0}: {1}".format(cls, e))
 
 def deleteAllInFolder(folder):
     pass
@@ -81,7 +81,10 @@ def replaceExtension(name, ext):
 def withoutExtension(name):
     res = os.path.splitext(name)[0]
     return res
-
+def getExtension(name):
+    res = os.path.splitext(name)[1]
+    res = res.split('.')
+    return res[-1]
 def gammaCorrect(value, gamma):
     return pow(value, 1.0 / gamma);
     
@@ -103,21 +106,9 @@ def linearToSRgb(s):
 
 def safe_unregister_class(cls):
     try:
-        #logger.debug("[appleseed] Unregistering class {0}...".format(cls))
         bpy.utils.unregister_class(cls)
     except Exception as e:
         print ("ERROR: Failed to unregister class {0}: {1}".format(cls, e))
-        #logger.error("[appleseed] ERROR: Failed to unregister class {0}: {1}".format(cls, e))
-
-def get_direction(x, y, z, w):
-    vec = mathutils.Vector((0.0, 0.0, 0.0))
-    vec.x = 2 * (x * z - w * y)
-    vec.y = 2 * (y * z + w * x)
-    vec.z = 1 - 2 * (x * x + y * y)
-    return vec
-
-def get_direction_from_quat(quat):
-    return get_direction(quat.x, quat.y, quat.z, quat.w)
 
 #generate array string for medium grid
 def createGrid(nx, ny, nz, value, random = False):
@@ -129,7 +120,7 @@ def createGrid(nx, ny, nz, value, random = False):
         arr = np.where(arr < 0, np.random.uniform(0, value, size=arr.shape), arr)
     else:
         arr.fill(value)
-    #rendom
+    #random
     np.set_printoptions(threshold=sys.maxsize)
     res_str = np.array2string(arr)
     np.set_printoptions(threshold = False)
@@ -173,9 +164,9 @@ def spectral_color(r, g, b, l): # RGB <0,1> <- lambda l <400,700> [nm]
         t=(l-475.0)/(560.0-475.0)
         b=0.7-(t)+(0.30*t*t)
         
-def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
+def ShowMessageBox(message, title = "Message Box", icon = 'INFO'):
     def draw(self, context):
-        self.layout.label(message)
+        self.layout.label(text = message)
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
 def runCmd(cmd, stdout=None, cwd=None, env=None):
@@ -198,7 +189,6 @@ def realpath(path):
         path = bpy.path.abspath(path)
     else:
         path = os.path.realpath(path)
-
     path = path.replace('\\', '/')
     path = os.path.realpath(path)
 
@@ -212,7 +202,6 @@ def getFileName(file):
     #base = os.path.basename(file)
     #name = os.path.splitext(base)
     #return name[0]
-
     return Path(file).stem
 
 def Lerp(a, b, t):
@@ -239,48 +228,6 @@ def calc_film_aspect_ratio(scene):
     yratio = height * render.pixel_aspect_y
     return xratio / yratio
 
-def calc_film_dimensions(aspect_ratio, camera, zoom):
-    """
-    Fit types:
-    Horizontal = Horizontal size manually set.  Vertical size derived from aspect ratio.
-
-    Vertical = Vertical size manually set.  Horizontal size derived from aspect ratio.
-
-    Auto = sensor_width bpy property sets the horizontal size when the aspect ratio is over 1 and
-    the vertical size when it is below 1.  Other dimension is derived from aspect ratio.
-
-    Much thanks to the Radeon ProRender plugin for clarifying this behavior
-    :param aspect_ratio:
-    :param camera:
-    :param zoom:
-    :return:
-    """
-
-    horizontal_fit = camera.sensor_fit == 'HORIZONTAL' or \
-                     (camera.sensor_fit == 'AUTO' and aspect_ratio > 1)
-
-    if camera.sensor_fit == 'VERTICAL':
-        film_height = camera.sensor_height / 1000 * zoom
-        film_width = film_height * aspect_ratio
-    elif horizontal_fit:
-        film_width = camera.sensor_width / 1000 * zoom
-        film_height = film_width / aspect_ratio
-    else:
-        film_height = camera.sensor_width / 1000 * zoom
-        film_width = film_height * aspect_ratio
-
-    return film_width, film_height
-
-def find_autofocus_point(scene):
-    cam = scene.camera
-    co = scene.cursor_location
-    co_2d = bpy_extras.object_utils.world_to_camera_view(scene,
-                                                         cam,
-                                                         co)
-    y = 1 - co_2d.y
-
-    return co_2d.x, y
-
 def get_focal_distance(camera):
     if camera.data.dof.focus_object is not None:
         cam_location = camera.matrix_world.to_translation()
@@ -295,10 +242,24 @@ def createFolder(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
+    
+def get_pid(name):
+    return check_output(["pidof",name])
+
+def stop_process(name):
+    pid = get_pid(name)
+    os.kill(pid, signal.SIGSTOP)
+
+def restart_process(name):
+    pid = get_pid(name)
+    os.kill(pid, signal.SIGCONT)
+    
+def stopPbrt():
+    name = "pbrt.exe"
+    stop_process(name)
 
 def register():
     pass
-
 
 def unregister():
     pass

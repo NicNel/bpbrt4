@@ -2,6 +2,7 @@ import bpy
 import os
 from bpy.types import NodeTree, Node, NodeSocket
 import nodeitems_utils
+
 from nodeitems_utils import (
     NodeCategory,
     NodeItem,
@@ -70,7 +71,7 @@ node_categories = [
         ]),
     ]
 
-class PBRTV4TreeNode:
+class PBRTV4TreeNode(Node):
     bl_icon = 'MATERIAL'
     bl_idname = 'pbrtv4Node'
     
@@ -79,17 +80,28 @@ class PBRTV4TreeNode:
     def setId(self, name, id):
         #matName::nodeType::nodeTreeUniqueId
         #self.name ="{}::{}::{}".format(name, self.bl_idname, id)
-        self.label ="{}::{}::{}".format(name, self.bl_idname, id)
+        #old
+        #self.pbrtv4NodeID ="{}::{}::{}".format(name, self.bl_idname, id)
+        #change from debug id variable (label) to internal one
+        self.pbrtv4NodeID ="{}::{}::{}".format(name, self.bl_idname, id)
     
     def getId(self):
-        tmp = self.label.split("::")
+        #tmp = self.pbrtv4NodeID.split("::")
+        tmp = self.pbrtv4NodeID.split("::")
         id = tmp[-1]
         return int(id)
     
-    #List - already exported nodes Data - nodes data to write
     def Backprop(self, List, Data, Tag = None):
-        if self.label not in List:
-            List.append(self.label)
+        if self.pbrtv4NodeID not in List:
+            List.append(self.pbrtv4NodeID)
+            return self.to_string(List, Data)
+        else:
+            return self
+            
+    #List - already exported nodes Data - nodes data to write
+    def BackpropOld(self, List, Data, Tag = None):
+        if self.pbrtv4NodeID not in List:
+            List.append(self.pbrtv4NodeID)
             return self.to_string(List, Data)
         else:
             return self
@@ -121,11 +133,10 @@ class PBRTV4TreeNode:
     #measured
     #subsurface
     #mix
-    
     #constant
     #"spectrum eta" [ 200 3.5 900 3.3 ]
     
-class pbrtv4NoneMaterial(Node, PBRTV4TreeNode):
+class pbrtv4NoneMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4None'
     bl_label = 'none'
@@ -141,7 +152,7 @@ class pbrtv4NoneMaterial(Node, PBRTV4TreeNode):
         return self.bl_label
     
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         #res +='  "string type" [ "none" ]\n'
@@ -151,7 +162,7 @@ class pbrtv4NoneMaterial(Node, PBRTV4TreeNode):
         return self
     #"float amount" [ 0.005 ]
     #"string materials" ["default" "default"]
-class pbrtv4MixMaterial(Node, PBRTV4TreeNode):
+class pbrtv4MixMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Mix'
     bl_label = 'mix'
@@ -176,7 +187,7 @@ class pbrtv4MixMaterial(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         amount = self.inputs[0]
         mat1 = self.inputs[1]
         mat2 = self.inputs[2]
@@ -193,7 +204,7 @@ class pbrtv4MixMaterial(Node, PBRTV4TreeNode):
             node_link = amount.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture amount" ["{}"]'.format(nd.label)
+            res+='  "texture amount" ["{}"]'.format(nd.pbrtv4NodeID)
             
         #mat1
         if not(mat1.is_linked):
@@ -202,7 +213,7 @@ class pbrtv4MixMaterial(Node, PBRTV4TreeNode):
             node_link = mat1.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            mat1FinalName = nd.label
+            mat1FinalName = nd.pbrtv4NodeID
         #mat2
         if not(mat2.is_linked):
             mat2FinalName = "default"
@@ -210,13 +221,13 @@ class pbrtv4MixMaterial(Node, PBRTV4TreeNode):
             node_link = mat2.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            mat2FinalName = nd.label
+            mat2FinalName = nd.pbrtv4NodeID
             
         res+='  "string materials" [ "{}" "{}" ]\n'.format(mat1FinalName,mat2FinalName)    
         data.append(res)
         return self
         
-class pbrtv4MeasuredMaterial(Node, PBRTV4TreeNode):
+class pbrtv4MeasuredMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Measured'
     bl_label = 'measured'
@@ -240,7 +251,7 @@ class pbrtv4MeasuredMaterial(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         disp = self.inputs[0]
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
@@ -253,12 +264,12 @@ class pbrtv4MeasuredMaterial(Node, PBRTV4TreeNode):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
             
         data.append(res)
         return self
         
-class pbrtv4DiffuseMaterial(Node, PBRTV4TreeNode):
+class pbrtv4DiffuseMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Diffuse'
     bl_label = 'diffuse'
@@ -299,7 +310,7 @@ class pbrtv4DiffuseMaterial(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         
         color = self.inputs[0]
         sigma = self.inputs[1]
@@ -322,7 +333,7 @@ class pbrtv4DiffuseMaterial(Node, PBRTV4TreeNode):
             if isinstance(curNode, pbrtv4NodeTexture2d):
                 res+='  "spectrum reflectance" [{}]\n'.format(nd.get_spectrum_str())
             else:
-                res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+                res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #sigma
         # if not(sigma.is_linked):
             # c = sigma.default_value
@@ -331,13 +342,13 @@ class pbrtv4DiffuseMaterial(Node, PBRTV4TreeNode):
             # node_link = sigma.links[0]
             # curNode =  node_link.from_node
             # nd = curNode.Backprop(list, data)
-            # res+='  "texture sigma" ["{}"]\n'.format(nd.label)
+            # res+='  "texture sigma" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export norm
         if 'norm' in locals():
             if (norm.is_linked):
@@ -348,7 +359,7 @@ class pbrtv4DiffuseMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
         
-class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
+class pbrtv4SheenMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Sheen'
     bl_label = 'sheen'
@@ -393,7 +404,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         
         color = self.inputs[0]
         sigma = self.inputs[1]
@@ -417,7 +428,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
             if isinstance(curNode, pbrtv4NodeTexture2d):
                 res+='  "spectrum reflectance" [{}]\n'.format(nd.get_spectrum_str())
             else:
-                res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+                res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
                 
         #sheen color
         if not(sheentext.is_linked):
@@ -427,7 +438,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
             node_link = sheentext.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture sheentext" ["{}"]\n'.format(nd.label)
+            res+='  "texture sheentext" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #sigma float texture
         # if not(sigma.is_linked):
             # c = sigma.default_value
@@ -438,7 +449,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
             # nd = curNode.Backprop(list, data)
             # #print ("######",nd.Pbrtv4TreeNodeName)
             # #print(type(curNode),"TYPEEEEEEEEEEEEEEEEEEEE")
-            # res+='  "texture sigma" ["{}"]\n'.format(nd.label)
+            # res+='  "texture sigma" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #sheen
         if not(sheen.is_linked):
             c = sheen.default_value
@@ -447,13 +458,13 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
             node_link = sheen.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture sheen" ["{}"]\n'.format(nd.label)
+            res+='  "texture sheen" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export norm
         if (norm.is_linked):
             node_link = norm.links[0]
@@ -464,7 +475,7 @@ class pbrtv4SheenMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
     #diffusetransmission
-class pbrtv4DiffTransMaterial(Node, PBRTV4TreeNode):
+class pbrtv4DiffTransMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4DiffTrans'
     bl_label = 'transmission'
@@ -503,7 +514,7 @@ class pbrtv4DiffTransMaterial(Node, PBRTV4TreeNode):
         sigma = self.inputs[2]
         disp = self.inputs[3]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "diffusetransmission" ]\n'
@@ -516,7 +527,7 @@ class pbrtv4DiffTransMaterial(Node, PBRTV4TreeNode):
             node_link = color.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture reflectance" ["{}"]'.format(nd.label)
+            res+='  "texture reflectance" ["{}"]'.format(nd.pbrtv4NodeID)
         #transmittance
         if not(transmittance.is_linked):
             c = transmittance.default_value
@@ -525,13 +536,13 @@ class pbrtv4DiffTransMaterial(Node, PBRTV4TreeNode):
             node_link = transmittance.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture transmittance" ["{}"]'.format(nd.label)
+            res+='  "texture transmittance" ["{}"]'.format(nd.pbrtv4NodeID)
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
             
         res+='  "float scale" [{}]'.format(self.Scale)
         data.append(res)
@@ -540,7 +551,7 @@ class pbrtv4DiffTransMaterial(Node, PBRTV4TreeNode):
 #"[ CoatedDiffuseMaterial displacement: %s reflectance: %s uRoughness: %s "
 #"vRoughness: %s thickness: %s eta: %s remapRoughness: %s ]"
 #"rgb mfp" [ 0.0012953 0.00095238 0.00067114 ]
-class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
+class pbrtv4SubsurfaceMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Subsurface'
     bl_label = 'subsurface'
@@ -676,7 +687,7 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
         roughness = self.inputs[3]
         disp = self.inputs[4]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "subsurface" ]\n'
         
@@ -689,7 +700,7 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
                 node_link = reflectance.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+                res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
             res+='  "rgb mfp" [ {} {} {} ]\n'.format(self.Mfp[0], self.Mfp[1], self.Mfp[2])
         elif self.NamePreset == "custom":
             #export sigma_s
@@ -700,7 +711,7 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
                 node_link = sigma_s.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture sigma_s" ["{}"]\n'.format(nd.label)
+                res+='  "texture sigma_s" ["{}"]\n'.format(nd.pbrtv4NodeID)
             #export sigma_a
             if not(sigma_a.is_linked):
                 c = sigma_a.default_value
@@ -709,7 +720,7 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
                 node_link = sigma_a.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture sigma_a" ["{}"]\n'.format(nd.label)
+                res+='  "texture sigma_a" ["{}"]\n'.format(nd.pbrtv4NodeID)
         else:
             res+='    '+'"string name" [ "{}" ]\n'.format(self.NamePreset)
 
@@ -722,14 +733,14 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
             node_link = roughness.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+            res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
             
         res+='  "float eta" [{}]\n'.format(self.Eta)
         remap='false'
@@ -740,7 +751,7 @@ class pbrtv4SubsurfaceMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
 
-class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
+class pbrtv4UberMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Uber'
     bl_label = 'uber'
@@ -817,7 +828,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
         #g = self.inputs[4]
         #albedo = self.inputs[5]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "uber" ]\n'
@@ -829,7 +840,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
             node_link = color.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+            res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #transmittance
         if not(transmittance.is_linked):
             c = transmittance.default_value
@@ -838,7 +849,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
             node_link = transmittance.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture transmittance" ["{}"]'.format(nd.label)
+            res+='  "texture transmittance" ["{}"]'.format(nd.pbrtv4NodeID)
         #export albedo
         if 'albedo' in locals():
             if not(albedo.is_linked):
@@ -848,7 +859,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
                 node_link = albedo.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture albedo" ["{}"]\n'.format(nd.label)
+                res+='  "texture albedo" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export g
         if 'g' in locals():
@@ -859,7 +870,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
                 node_link = g.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture g" ["{}"]\n'.format(nd.label)
+                res+='  "texture g" ["{}"]\n'.format(nd.pbrtv4NodeID)
             
         #export roughness
         if not(roughness.is_linked):
@@ -870,14 +881,14 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
             node_link = roughness.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+            res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export norm
         if 'norm' in locals():
@@ -904,7 +915,7 @@ class pbrtv4UberMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
 
-class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
+class pbrtv4CoateddiffuseMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Coateddiffuse'
     bl_label = 'coateddiffuse'
@@ -1001,7 +1012,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
         #g = self.inputs[4]
         #albedo = self.inputs[5]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "coateddiffuse" ]\n'
@@ -1013,7 +1024,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
             node_link = color.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+            res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export albedo
         if 'albedo' in locals():
             if not(albedo.is_linked):
@@ -1023,7 +1034,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
                 node_link = albedo.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture albedo" ["{}"]\n'.format(nd.label)
+                res+='  "texture albedo" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export g
         if 'g' in locals():
@@ -1034,7 +1045,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
                 node_link = g.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture g" ["{}"]\n'.format(nd.label)
+                res+='  "texture g" ["{}"]\n'.format(nd.pbrtv4NodeID)
             
         #export roughness
         if self.Anisotropy:
@@ -1046,7 +1057,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
                     node_link = uroughness.links[0]
                     curNode =  node_link.from_node
                     nd = curNode.Backprop(list, data)
-                    res+='  "texture uroughness" ["{}"]\n'.format(nd.label)
+                    res+='  "texture uroughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
             if vroughness is not None:
                 if not(vroughness.is_linked):
                     c = vroughness.default_value
@@ -1055,7 +1066,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
                     node_link = vroughness.links[0]
                     curNode =  node_link.from_node
                     nd = curNode.Backprop(list, data)
-                    res+='  "texture vroughness" ["{}"]\n'.format(nd.label)
+                    res+='  "texture vroughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         else:
             if not(roughness.is_linked):
                 c = roughness.default_value
@@ -1064,14 +1075,14 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
                 node_link = roughness.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+                res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export norm
         if 'norm' in locals():
@@ -1098,7 +1109,7 @@ class pbrtv4CoateddiffuseMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
         
-class pbrtv4PlasticMaterial(Node, PBRTV4TreeNode):
+class pbrtv4PlasticMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Plastic'
     bl_label = 'plastic'
@@ -1153,7 +1164,7 @@ class pbrtv4PlasticMaterial(Node, PBRTV4TreeNode):
         roughness = self.inputs[1]
         disp = self.inputs[2]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "plastic" ]\n'
         
@@ -1164,7 +1175,7 @@ class pbrtv4PlasticMaterial(Node, PBRTV4TreeNode):
             node_link = color.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+            res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export roughness
         if not(roughness.is_linked):
@@ -1174,14 +1185,14 @@ class pbrtv4PlasticMaterial(Node, PBRTV4TreeNode):
             node_link = roughness.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+            res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         remap='false'
         if self.RemapRoughness:
             remap='true'
@@ -1199,7 +1210,7 @@ class pbrtv4PlasticMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
         
-class pbrtv4DielectricMaterial(Node, PBRTV4TreeNode):
+class pbrtv4DielectricMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Dielectric'
     bl_label = 'dielectric'
@@ -1261,7 +1272,7 @@ class pbrtv4DielectricMaterial(Node, PBRTV4TreeNode):
         roughness = self.inputs[0]
         disp = self.inputs[1]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         res ='MakeNamedMaterial "{}"\n'.format(name)
         if self.isThin:
             res +='  "string type" [ "thindielectric" ]\n'
@@ -1277,13 +1288,13 @@ class pbrtv4DielectricMaterial(Node, PBRTV4TreeNode):
                 node_link = roughness.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+                res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
             #export bump
             if (disp.is_linked):
                 node_link = disp.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+                res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
             remap='false'
             if self.RemapRoughness:
                 remap='true'
@@ -1308,7 +1319,7 @@ class pbrtv4DielectricMaterial(Node, PBRTV4TreeNode):
     #"spectrum k" [ "metal-Al-k" ]
     #"float roughness" [ 0.005 ]
     
-class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
+class pbrtv4ConductorMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Conductor'
     bl_label = 'conductor'
@@ -1392,7 +1403,7 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
         vroughness = self.inputs.get("vroughness")
         disp = self.inputs.get("displacement")
         
-        name = self.label
+        name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "conductor" ]\n'
@@ -1405,7 +1416,7 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
                 node_link = color.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture reflectance" ["{}"]\n'.format(nd.label)
+                res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export roughness
         if self.Anisotropy:
             if uroughness is not None:
@@ -1416,7 +1427,7 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
                     node_link = uroughness.links[0]
                     curNode =  node_link.from_node
                     nd = curNode.Backprop(list, data)
-                    res+='  "texture uroughness" ["{}"]\n'.format(nd.label)
+                    res+='  "texture uroughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
             if vroughness is not None:
                 if not(vroughness.is_linked):
                     c = vroughness.default_value
@@ -1425,7 +1436,7 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
                     node_link = vroughness.links[0]
                     curNode =  node_link.from_node
                     nd = curNode.Backprop(list, data)
-                    res+='  "texture vroughness" ["{}"]\n'.format(nd.label)
+                    res+='  "texture vroughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         else:
             if not(roughness.is_linked):
                 c = roughness.default_value
@@ -1434,13 +1445,13 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
                 node_link = roughness.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture roughness" ["{}"]\n'.format(nd.label)
+                res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture displacement" ["{}"]\n'.format(nd.label)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
         if not self.EtaPreset == 'color':    
             res+='  "spectrum eta" [ "{}" ]\n'.format(self.EtaPreset)
             res+='  "spectrum k" [ "{}" ]\n'.format(self.kPreset)
@@ -1451,7 +1462,7 @@ class pbrtv4ConductorMaterial(Node, PBRTV4TreeNode):
         data.append(res)
         return self
         
-class pbrtv4NodeTexture2d(Node, PBRTV4TreeNode):
+class pbrtv4NodeTexture2d(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeTexture2d'
     bl_label = 'Pbrtv4 Texture'
@@ -1497,7 +1508,7 @@ class pbrtv4NodeTexture2d(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         #file = util.getFileName(self.filename)
         #textName = self.constructTName(name, file)
         res = 'Texture "{}" "{}" "imagemap"\n'.format(name, self.TextureType)
@@ -1514,7 +1525,7 @@ class pbrtv4NodeTexture2d(Node, PBRTV4TreeNode):
         #return text name
         return self
 
-class pbrtv4NodeImageTexture2d(Node, PBRTV4TreeNode):
+class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeImageTexture2d'
     bl_label = 'pbrtv4 image'
@@ -1605,7 +1616,7 @@ class pbrtv4NodeImageTexture2d(Node, PBRTV4TreeNode):
             util.switchpath(util.realpath(curNode.image.filepath))
     
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         #file = util.getFileName(self.filename)
         #textName = self.constructTName(name, file)
         res = 'Texture "{}" "{}" "imagemap"\n'.format(name, self.TextureType)
@@ -1642,7 +1653,7 @@ class pbrtv4NodeImageTexture2d(Node, PBRTV4TreeNode):
         #return text name
         return self
         
-class pbrtv4NodeCheckerboard(Node, PBRTV4TreeNode):
+class pbrtv4NodeCheckerboard(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeCheckerboard'
     bl_label = 'Pbrtv4 Checkerboard'
@@ -1689,7 +1700,7 @@ class pbrtv4NodeCheckerboard(Node, PBRTV4TreeNode):
         tex2 = self.inputs[1]
         uv = self.inputs[2]
         
-        name = self.label
+        name = self.pbrtv4NodeID
         #file = util.getFileName(self.filename)
         #textName = self.constructTName(name, file)
         res = 'Texture "{}" "{}" "checkerboard"\n'.format(name, self.TextureType)
@@ -1702,7 +1713,7 @@ class pbrtv4NodeCheckerboard(Node, PBRTV4TreeNode):
             node_link = tex1.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture tex1" ["{}"]'.format(nd.label)
+            res+='  "texture tex1" ["{}"]'.format(nd.pbrtv4NodeID)
             
         #tex2
         if not(tex2.is_linked):
@@ -1712,7 +1723,7 @@ class pbrtv4NodeCheckerboard(Node, PBRTV4TreeNode):
             node_link = tex2.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture tex2" ["{}"]'.format(nd.label)
+            res+='  "texture tex2" ["{}"]'.format(nd.pbrtv4NodeID)
         
         if not(uv.is_linked):
             res+=''
@@ -1724,7 +1735,7 @@ class pbrtv4NodeCheckerboard(Node, PBRTV4TreeNode):
         #return text name
         return self
         
-class pbrtv4NodeScale(Node, PBRTV4TreeNode):
+class pbrtv4NodeScale(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeScale'
     bl_label = 'Pbrtv4 Scale'
@@ -1762,14 +1773,14 @@ class pbrtv4NodeScale(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         texture = self.inputs[0]
         if (texture.is_linked):
             node_link = texture.links[0]
             curNode =  node_link.from_node
             
             nd = curNode.Backprop(list, data)
-            baseName = nd.label
+            baseName = nd.pbrtv4NodeID
             textName = name
             res = 'Texture "{}" "{}" "scale"\n'.format(textName, self.TextureType)
             res +='    "float scale" [ {} ]\n'.format(self.ScaleValue)
@@ -1778,7 +1789,7 @@ class pbrtv4NodeScale(Node, PBRTV4TreeNode):
         data.append(res)
         return self  
 
-class pbrtv4NodeConstant(Node, PBRTV4TreeNode):
+class pbrtv4NodeConstant(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeConstant'
     bl_label = 'Pbrtv4 Constant'
@@ -1823,7 +1834,7 @@ class pbrtv4NodeConstant(Node, PBRTV4TreeNode):
         return self.bl_label
         
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         
         textName = name
         ct = 'float'
@@ -1849,7 +1860,7 @@ class pbrtv4NodeConstant(Node, PBRTV4TreeNode):
         data.append(res)
         return self  
         
-class pbrtv4NodeMapping2d(Node, PBRTV4TreeNode):
+class pbrtv4NodeMapping2d(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'PBRTV4Mapping2d'
     bl_label = 'Pbrtv4 UV Mapping'
@@ -1900,7 +1911,7 @@ class pbrtv4NodeMapping2d(Node, PBRTV4TreeNode):
         return res
 
 #pbrtv4NodeMix
-class pbrtv4NodeMix(Node, PBRTV4TreeNode):
+class pbrtv4NodeMix(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeMix'
     bl_label = 'Pbrtv4 Mix'
@@ -1940,7 +1951,7 @@ class pbrtv4NodeMix(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         amount = self.inputs[0]
         tex1 = self.inputs[1]
         tex2 = self.inputs[2]
@@ -1954,7 +1965,7 @@ class pbrtv4NodeMix(Node, PBRTV4TreeNode):
             node_link = amount.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture amount" ["{}"]'.format(nd.label)
+            res+='  "texture amount" ["{}"]'.format(nd.pbrtv4NodeID)
         
         #tex1
         if not(tex1.is_linked):
@@ -1964,7 +1975,7 @@ class pbrtv4NodeMix(Node, PBRTV4TreeNode):
             node_link = tex1.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture tex1" ["{}"]'.format(nd.label)
+            res+='  "texture tex1" ["{}"]'.format(nd.pbrtv4NodeID)
             
         #tex2
         if not(tex2.is_linked):
@@ -1974,13 +1985,13 @@ class pbrtv4NodeMix(Node, PBRTV4TreeNode):
             node_link = tex2.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture tex2" ["{}"]'.format(nd.label)
+            res+='  "texture tex2" ["{}"]'.format(nd.pbrtv4NodeID)
         
         data.append(res)
         
         return self
 
-class pbrtv4NodeHSV(Node, PBRTV4TreeNode):
+class pbrtv4NodeHSV(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeHSV'
     bl_label = 'Pbrtv4 HSV'
@@ -2024,7 +2035,7 @@ class pbrtv4NodeHSV(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         #amount = self.inputs[0]
         tex1 = self.inputs[0]
         #tex2 = self.inputs[2]
@@ -2039,7 +2050,7 @@ class pbrtv4NodeHSV(Node, PBRTV4TreeNode):
             node_link = tex1.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture tex" ["{}"]'.format(nd.label)
+            res+='  "texture tex" ["{}"]'.format(nd.pbrtv4NodeID)
         
         res+='  "float hue" [ {} ]\n'.format(self.Hue)
         res+='  "float saturation" [ {} ]\n'.format(self.Saturation)  
@@ -2054,7 +2065,8 @@ class pbrtv4NodeHSV(Node, PBRTV4TreeNode):
 #        "rgb sigma_a" [ 0.0125 0.0125 0.01 ]
 #        "float scale" [ 0.5 ]
 #        "string type" [ "homogeneous" ]
-class pbrtv4UniformgridVolume(Node, PBRTV4TreeNode):
+
+class pbrtv4UniformgridVolume(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Uniformgrid'
     bl_label = 'uniformgrid'
@@ -2086,7 +2098,7 @@ class pbrtv4UniformgridVolume(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         sigma_s = self.inputs[0]
         sigma_a = self.inputs[1]
         res ='MakeNamedMedium "{}"\n'.format(name)
@@ -2115,7 +2127,7 @@ class pbrtv4UniformgridVolume(Node, PBRTV4TreeNode):
             node_link = sigma_s.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  "texture sigma_s" ["{}"]\n'.format(nd.label)
+            res+='  "texture sigma_s" ["{}"]\n'.format(nd.pbrtv4NodeID)
         #sigma_a        
         if not(sigma_a.is_linked):
             c = sigma_a.default_value
@@ -2124,11 +2136,11 @@ class pbrtv4UniformgridVolume(Node, PBRTV4TreeNode):
             node_link = sigma_a.links[0]
             curNode =  node_link.from_node
             nd = curNode.Backprop(list, data)
-            res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.label)
+            res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.pbrtv4NodeID)
         data.append(res)
         return self
 
-class pbrtv4HomogeneousVolume(Node, PBRTV4TreeNode):
+class pbrtv4HomogeneousVolume(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Homogeneous'
     bl_label = 'homogeneous'
@@ -2216,7 +2228,7 @@ class pbrtv4HomogeneousVolume(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         sigma_s = self.inputs[0]
         sigma_a = self.inputs[1]
         res ='MakeNamedMedium "{}"\n'.format(name)
@@ -2233,7 +2245,7 @@ class pbrtv4HomogeneousVolume(Node, PBRTV4TreeNode):
                 node_link = sigma_s.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture sigma_s" ["{}"]\n'.format(nd.label)
+                res+='  "texture sigma_s" ["{}"]\n'.format(nd.pbrtv4NodeID)
             #sigma_a        
             if not(sigma_a.is_linked):
                 c = sigma_a.default_value
@@ -2242,11 +2254,11 @@ class pbrtv4HomogeneousVolume(Node, PBRTV4TreeNode):
                 node_link = sigma_a.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.label)
+                res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.pbrtv4NodeID)
         data.append(res)
         return self
         
-class pbrtv4CloudVolume(Node, PBRTV4TreeNode):
+class pbrtv4CloudVolume(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4CloudVolume'
     bl_label = 'cloud'
@@ -2347,7 +2359,7 @@ class pbrtv4CloudVolume(Node, PBRTV4TreeNode):
     
     #return str to add blocks from connected nodes to current and data to write to file
     def to_string(self, list, data):
-        name = self.label
+        name = self.pbrtv4NodeID
         sigma_s = self.inputs[0]
         sigma_a = self.inputs[1]
         res ='MakeNamedMedium "{}"\n'.format(name)
@@ -2369,7 +2381,7 @@ class pbrtv4CloudVolume(Node, PBRTV4TreeNode):
                 node_link = sigma_s.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  "texture sigma_s" ["{}"]\n'.format(nd.label)
+                res+='  "texture sigma_s" ["{}"]\n'.format(nd.pbrtv4NodeID)
             #sigma_a        
             if not(sigma_a.is_linked):
                 c = sigma_a.default_value
@@ -2378,11 +2390,11 @@ class pbrtv4CloudVolume(Node, PBRTV4TreeNode):
                 node_link = sigma_a.links[0]
                 curNode =  node_link.from_node
                 nd = curNode.Backprop(list, data)
-                res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.label)
+                res+='  '+'"texture sigma_a" ["{}"]\n'.format(nd.pbrtv4NodeID)
         data.append(res)
         return self
 
-class pbrtv4Displacement(Node, PBRTV4TreeNode):
+class pbrtv4Displacement(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Displacement'
     bl_label = 'displacement'
@@ -2427,6 +2439,9 @@ class pbrtv4Displacement(Node, PBRTV4TreeNode):
         return dInfo
         
 def register():
+    #add internal Id property for Node
+    bpy.types.Node.pbrtv4NodeID = bpy.props.StringProperty(name="NodeID", default = "NodeID")
+    
     bpy.utils.register_class(pbrtv4PlasticMaterial)
     bpy.utils.register_class(pbrtv4UberMaterial)
     bpy.utils.register_class(pbrtv4Displacement)
@@ -2434,7 +2449,6 @@ def register():
     bpy.utils.register_class(pbrtv4SubsurfaceMaterial)
     bpy.utils.register_class(pbrtv4NodeMix)
     bpy.utils.register_class(pbrtv4SheenMaterial)
-    #bpy.utils.register_class(DATA_PT_context_light)
     bpy.utils.register_class(pbrtv4HomogeneousVolume)
     bpy.utils.register_class(pbrtv4CloudVolume)
     bpy.utils.register_class(pbrtv4UniformgridVolume)
@@ -2488,4 +2502,6 @@ def unregister():
     bpy.utils.unregister_class(pbrtv4NodeMapping2d)
     #bpy.utils.unregister_class(pbrtv4NodeOutput)
     #bpy.utils.unregister_class(PBRTV4NodeTree)
+    
+    del bpy.types.Node.pbrtv4NodeID
     nodeitems_utils.unregister_node_categories("PBRTV4_NODES")

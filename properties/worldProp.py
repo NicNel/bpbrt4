@@ -68,17 +68,29 @@ class convertEnvOperator(bpy.types.Operator):
         baseTexture = util.switchpath(util.realpath(envmap))
         baseName = util.getFileName(baseTexture)
         print(baseName)
-        baseName = util.replaceExtension(baseName+"_conv", "exr")
-        print(baseName)
-        textureFolder =os.path.join(bpy.context.scene.pbrtv4.pbrt_project_dir, "textures")
-        converted_file = os.path.join(textureFolder, baseName)
-        converted_file = util.switchpath(converted_file)
-        itoolExecPath = util.switchpath(bpy.context.scene.pbrtv4.pbrt_bin_dir)+'/'+'imgtool.exe'
-        cmd = [ itoolExecPath, "makeequiarea", baseTexture, "--outfile", converted_file]
-        #print(cmd)
-        util.runCmd(cmd)
-        return converted_file
-        
+        ext = util.getExtension(baseTexture)
+        if not ext=="exr":
+            util.ShowMessageBox("File format: *."+ext+" doesn't supported! *.exr only")
+            print("File format: *."+ext+" doesn't supported! *.exr only")
+            return baseTexture
+        else:
+            if baseName.split("_")[-1]=="converted":
+                print("File already converted. Path: "+baseTexture)
+                util.ShowMessageBox("File already converted. Path: "+baseTexture)
+                return baseTexture
+            else:
+                baseName = util.replaceExtension(baseName+"_converted", "exr")
+                print(baseName)
+                textureFolder = util.createFolder(os.path.join(bpy.context.scene.pbrtv4.pbrt_project_dir, "textures"))
+                converted_file = os.path.join(textureFolder, baseName)
+                converted_file = util.switchpath(converted_file)
+                itoolExecPath = os.path.join(bpy.context.scene.pbrtv4.pbrt_bin_dir, "imgtool.exe")
+                cmd = [ itoolExecPath, "makeequiarea", baseTexture, "--outfile", converted_file]
+                #print(cmd)
+                util.runCmd(cmd)
+                print("Complete! Converted file: "+converted_file)
+                util.ShowMessageBox("Complete! Converted file: "+converted_file)
+                return converted_file
 def register():
     bpy.utils.register_class(convertEnvOperator)
     util.safe_register_class(PBRTV4WorldSettings)
