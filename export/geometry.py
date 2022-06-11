@@ -163,7 +163,18 @@ class GeometryExporter:
     @staticmethod
     def export_mat_get(mat, export_name):
         materialData = []
+        
+        if mat.use_nodes == False:
+            GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
+            print('! WARN !', "Material: {} has no NodeTree".format(mat.name))
+            return materialData
+            
         OutputNode = mat.node_tree.nodes.get('Material Output')
+        if OutputNode == None:
+            GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
+            print('! WARN !', "Material: {} has no Output Node".format(mat.name))
+            return materialData
+        
         input = OutputNode.inputs[0] #shader input
         if input.is_linked:
             node_link = input.links[0]
@@ -198,9 +209,21 @@ class GeometryExporter:
         mat = object_instance.object.material_slots[matid].material
         print ('Exporting material: ', mat.name)
         
-        OutputNode = mat.node_tree.nodes.get('Material Output')
-        #print("Output node name: ", OutputNode.name)
+        if mat.use_nodes == False:
+            if not mat.name in self.exported_materials:
+                self.addDefaultMat(mat.name, self.materialData, [1,0,0])
+                self.exported_materials.add(mat.name)
+                print('! WARN !', "Material: {} has no NodeTree".format(mat.name))
+            return outInfo
         
+        OutputNode = mat.node_tree.nodes.get('Material Output')
+        if OutputNode == None:
+            if not mat.name in self.exported_materials:
+                self.addDefaultMat(mat.name, self.materialData, [1,0,0])
+                self.exported_materials.add(mat.name)
+                print('! WARN !', "Material: {} has no Output Node".format(mat.name))
+            return outInfo
+            
         #export medium
         volume_input = OutputNode.inputs[1] #shader volume
         if volume_input.is_linked:
@@ -265,6 +288,10 @@ class GeometryExporter:
         return outInfo
                         
     def save_mesh(self, b_mesh, matrix_world, b_name, file_path, mat_nr, info):
+        if b_mesh == None:
+            print("Object: {} has no mesh. Skipping.".format(b_name), 'WARN')
+            return False
+        
         b_mesh.calc_normals()
         b_mesh.calc_loop_triangles() # Compute the triangle tesselation
         if mat_nr == -1:
