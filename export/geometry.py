@@ -49,7 +49,7 @@ class MatInfo(object):
             return result
         return ""
     @staticmethod
-    def CreateInfo(_name, _isEm, _color, _power, _preset, _temp):
+    def CreateInfo(_name, _isEm = False, _color = [0,0,0], _power = 0, _preset = "", _temp = 6500):
         matInfo = MatInfo(_name)
         matInfo.isEmissive = _isEm
         matInfo.preset = _preset
@@ -112,10 +112,6 @@ class ObjectInfo(object):
         return result
 
 class GeometryExporter:
-    """
-    Encapsulates mesh export methods, and keeps track of exported objects.
-    This is necessary in order to export meshes with multiple materials.
-    """
     need_update=False
     
     def __init__(self):
@@ -273,38 +269,35 @@ class GeometryExporter:
         b_mesh.calc_loop_triangles() # Compute the triangle tesselation
         if mat_nr == -1:
             name = b_name
-            mat_nr=0 # Default value for blender
         else:
             name = "%s-%s" %(b_name, b_mesh.materials[mat_nr].name)
+            
         loop_tri_count = len(b_mesh.loop_triangles)
         if loop_tri_count == 0:
             print("Mesh: {} has no faces. Skipping.".format(name), 'WARN')
-            return
+            return False
 
 		# collect faces by mat index
-        ffaces_mats = {}
         mesh_faces = b_mesh.loop_triangles
-        cnt =0
+        cnt = 0
         ffaces_mats=[]
         for f in mesh_faces:
             mi = f.material_index
-			#create container with mat index
-            #if mi not in ffaces_mats.keys():
-                #ffaces_mats[mi] = []
-			#export only material part / need to be optimized
+			#export only part with material id / need to be optimized
             if mi == mat_nr:
                 ffaces_mats.append(f)
                 cnt=cnt+1
-        #material_indices = ffaces_mats.keys()
-        if cnt > 0: # Only save complete meshes
+        if mat_nr == -1:
+            print('! WARN !', "Object: {} has no materials. Default added".format(name))
+            mtInfo = MatInfo.CreateInfo("default")
+            info.addPart(name, mtInfo)
+            write_ply_mesh(file_path, b_name, b_mesh, mesh_faces) #export whole mesh
+            return True
+        elif cnt > 0: # Only save complete meshes
             #add only parts with data
             mtInfo = MatInfo.CreateInfo(b_mesh.materials[mat_nr].name, b_mesh.materials[mat_nr].pbrtv4_isEmissive, b_mesh.materials[mat_nr].pbrtv4_emission_color, b_mesh.materials[mat_nr].pbrtv4_emission_power, b_mesh.materials[mat_nr].pbrtv4_emission_preset, b_mesh.materials[mat_nr].pbrtv4_emission_temp)
             info.addPart(name, mtInfo)
             write_ply_mesh(file_path, b_name, b_mesh, ffaces_mats)
-            
-            #file_path - full name to ply file
-            #print(file_path+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            #self.add_exported_mesh(b_name, name)
             return True
         else:
             print("Material ", b_mesh.materials[mat_nr].name, " has no mesh data assigned! Skipped...")
@@ -320,6 +313,7 @@ class GeometryExporter:
         else:
             name = "%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name)
         abs_path = os.path.join(folder, "%s.ply" % name)
+        
         if not object_instance.is_instance:
             #save the mesh once, if it's not an instance, or if it's an instance and the original object was not exported
             b_mesh = b_object.to_mesh()
@@ -345,9 +339,6 @@ class GeometryExporter:
         #export with default mat
         if valid_mats == 0: #no material, or no valid material
             self.export_object_mat(object_instance, -1, objectInfo, folder)
-        #objectInfo.to_String()
-        #print(objectInfo.Transform)
-        #print(objectInfo.to_DictStr('geometry/'))
         return objectInfo
    
     #AttributeBegin
