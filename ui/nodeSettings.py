@@ -8,7 +8,7 @@ from nodeitems_utils import (
     NodeItem,
     NodeItemCustom,
 )
-from ..utils import util
+from ..utils import util, presets
 
 class PBRTV4NodeTree(bpy.types.NodeTree):
     """ This operator is only visible when pbrt4 is the selected render engine"""
@@ -569,11 +569,11 @@ class pbrtv4SubsurfaceMaterial(PBRTV4TreeNode):
         SigmaS = self.inputs[0]
         SigmaA = self.inputs[1]
         Reflectance = self.inputs[2]
-        if self.NamePreset == "reflectance":
+        if self.NamePreset == "Reflectance":
             SigmaS.hide = True
             SigmaA.hide = True
             Reflectance.hide = False
-        elif self.NamePreset == "custom":
+        elif self.NamePreset == "Custom":
             SigmaS.hide = False
             SigmaA.hide = False
             Reflectance.hide = True
@@ -585,63 +585,10 @@ class pbrtv4SubsurfaceMaterial(PBRTV4TreeNode):
         
     NamePreset: bpy.props.EnumProperty(name="NamePreset",
                                               description="",
-                                              items=[
-                                              ("Apple", "Apple", "Apple"),
-                                              ("Chicken1", "Chicken1", "Chicken1"),
-                                              ("Chicken2", "Chicken2", "Chicken2"),
-                                              ("Cream", "Cream", "Cream"),
-                                              ("Ketchup", "Ketchup", "Ketchup"),
-                                              ("Marble", "Marble", "Marble"),
-                                              
-                                              ("Potato", "Potato", "Potato"),
-                                              ("Skimmilk", "Skimmilk", "Skimmilk"),
-                                              ("Skin1", "Skin1", "Skin1"),
-                                              ("Skin2", "Skin2", "Skin2"),
-                                              ("Spectralon", "Spectralon", "Spectralon"),
-                                              ("Wholemilk", "Wholemilk", "Wholemilk"),
-                                              ("Lowfat Milk", "Lowfat Milk", "Lowfat Milk"),
-                                              ("Reduced Milk", "Reduced Milk", "Reduced Milk"),
-                                              ("Regular Milk", "Regular Milk", "Regular Milk"),
-                                              ("Espresso", "Espresso", "Espresso"),
-                                              
-                                              ("Mint Mocha Coffee", "Mint Mocha Coffee", "Mint Mocha Coffee"),
-                                              ("Lowfat Soy Milk", "Lowfat Soy Milk", "Lowfat Soy Milk"),
-                                              ("Regular Soy Milk", "Regular Soy Milk", "Regular Soy Milk"),
-                                              ("Lowfat Chocolate Milk", "Lowfat Chocolate Milk", "Lowfat Chocolate Milk"),
-                                              ("Regular Chocolate Milk", "Regular Chocolate Milk", "Regular Chocolate Milk"),
-                                              ("Coke", "Coke", "Coke"),
-                                              ("Pepsi", "Pepsi", "Pepsi"),
-                                              ("Sprite", "Sprite", "Sprite"),
-                                              ("Gatorade", "Gatorade", "Gatorade"),
-                                              
-                                              ("Chardonnay", "Chardonnay", "Chardonnay"),
-                                              ("White Zinfandel", "White Zinfandel", "White Zinfandel"),
-                                              ("Merlot", "Merlot", "Merlot"),
-                                              ("Budweiser Beer", "Budweiser Beer", "Budweiser Beer"),
-                                              ("Coors Light Beer", "Coors Light Beer", "Coors Light Beer"),
-                                              ("Clorox", "Clorox", "Clorox"),
-                                              ("Apple Juice", "Apple Juice", "Apple Juice"),
-                                              ("Cranberry Juice", "Cranberry Juice", "Cranberry Juice"),
-                                              ("Grape Juice", "Grape Juice", "Grape Juice"),
-                                              
-                                              ("Ruby Grapefruit Juice", "Ruby Grapefruit Juice", "Ruby Grapefruit Juice"),
-                                              ("White Grapefruit Juice", "White Grapefruit Juice", "White Grapefruit Juice"),
-                                              ("Shampoo", "Shampoo", "Shampoo"),
-                                              ("Strawberry Shampoo", "Strawberry Shampoo", "Strawberry Shampoo"),
-                                              ("Head & Shoulders Shampoo", "Head & Shoulders Shampoo", "Head & Shoulders Shampoo"),
-                                              ("Lemon Tea Powder", "Lemon Tea Powder", "Lemon Tea Powder"),
-                                              ("Orange Powder", "Orange Powder", "Orange Powder"),
-                                              ("Pink Lemonade Powder", "Pink Lemonade Powder", "Pink Lemonade Powder"),
-                                              ("Cappuccino Powder", "Cappuccino Powder", "Cappuccino Powder"),
-                                              ("Salt Powder", "Salt Powder", "Salt Powder"),
-                                              ("Sugar Powder", "Sugar Powder", "Sugar Powder"),
-                                              
-                                              ("Suisse Mocha Powder", "Suisse Mocha Powder", "Suisse Mocha Powder"),
-                                              ("Pacific Ocean Surface Water", "Pacific Ocean Surface Water", "Pacific Ocean Surface Water"),
-                                              ("reflectance", "reflectance", "reflectance"),
-                                              ("custom", "custom", "custom") 
-                                              ],
-                                              default='reflectance', update=updatePreset)
+                                              items=presets.MediumPreset + 
+                                              [("Reflectance", "Reflectance", "Reflectance"),
+                                                ("Custom", "Custom", "Custom")],
+                                              default='Reflectance', update=updatePreset)
     
     def init(self, context):
         self.outputs.new('NodeSocketShader', "BSDF")
@@ -691,7 +638,7 @@ class pbrtv4SubsurfaceMaterial(PBRTV4TreeNode):
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='  "string type" [ "subsurface" ]\n'
         
-        if self.NamePreset == "reflectance":
+        if self.NamePreset == "Reflectance":
             #export reflectance
             if not(reflectance.is_linked):
                 c = reflectance.default_value
@@ -702,7 +649,7 @@ class pbrtv4SubsurfaceMaterial(PBRTV4TreeNode):
                 nd = curNode.Backprop(list, data)
                 res+='  "texture reflectance" ["{}"]\n'.format(nd.pbrtv4NodeID)
             res+='  "rgb mfp" [ {} {} {} ]\n'.format(self.Mfp[0], self.Mfp[1], self.Mfp[2])
-        elif self.NamePreset == "custom":
+        elif self.NamePreset == "Custom":
             #export sigma_s
             if not(sigma_s.is_linked):
                 c = sigma_s.default_value
@@ -1121,17 +1068,8 @@ class pbrtv4PlasticMaterial(PBRTV4TreeNode):
     
     EtaPreset: bpy.props.EnumProperty(name="EtaPreset",
                                               description="",
-                                              items=[
-                                              ("custom", "Value", "Custom"),
-                                              ("color", "color", "Custom"),
-                                              ("glass-BK7", "Glass BK7", "Glass BK7"),
-                                              ("glass-BAF10", "Glass BAF10", "Glass BAF10"),
-                                              ("glass-FK51A", "Glass FK51A", "Glass FK51A"),
-                                              ("glass-LASF9", "Glass LASF9", "Glass LASF9"),
-                                              ("glass-F5", "Glass SF5", "Glass SF5"),
-                                              ("glass-F10", "Glass SF10", "Glass SF10"),
-                                              ("glass-F11", "Glass SF11", "Glass SF11"),
-                                              ],
+                                              items=presets.GlassPreset+[("custom", "Value", "Custom"),
+                                                                         ("color", "color", "Custom")],
                                               default='custom')
     
     def init(self, context):
@@ -1224,17 +1162,8 @@ class pbrtv4DielectricMaterial(PBRTV4TreeNode):
     Tint : bpy.props.FloatVectorProperty(name="Tint", description="tint color",default=(1.0, 1.0, 1.0, 1.0), min=0, max=1, subtype='COLOR', size=4)
     EtaPreset: bpy.props.EnumProperty(name="EtaPreset",
                                               description="",
-                                              items=[
-                                              ("custom", "Value", "Custom"),
-                                              ("color", "color", "Custom"),
-                                              ("glass-BK7", "Glass BK7", "Glass BK7"),
-                                              ("glass-BAF10", "Glass BAF10", "Glass BAF10"),
-                                              ("glass-FK51A", "Glass FK51A", "Glass FK51A"),
-                                              ("glass-LASF9", "Glass LASF9", "Glass LASF9"),
-                                              ("glass-F5", "Glass SF5", "Glass SF5"),
-                                              ("glass-F10", "Glass SF10", "Glass SF10"),
-                                              ("glass-F11", "Glass SF11", "Glass SF11"),
-                                              ],
+                                              items=presets.GlassPreset+[("custom", "Value", "Custom"),
+                                                                         ("color", "color", "Custom")],
                                               default='custom')
     def init(self, context):
         self.outputs.new('NodeSocketShader', "BSDF")
@@ -1340,26 +1269,12 @@ class pbrtv4ConductorMaterial(PBRTV4TreeNode):
 
     EtaPreset: bpy.props.EnumProperty(name="EtaPreset",
                                               description="",
-                                              items=[
-                                              ("metal-Ag-eta", "Ag Eta", "Ag"),
-                                              ("metal-Au-eta", "Au Eta", "Au"),
-                                              ("metal-Al-eta", "Al Eta", "Al"),
-                                              ("metal-Cu-eta", "Cu Eta", "Cu"),
-                                              ("metal-MgO-eta", "MgO Eta", "MgO"),
-                                              ("metal-TiO2-eta", "TiO2 Eta", "TiO2"),
-                                              ("color", "color", "Use color")
-                                              ],
+                                              items=presets.MetalEta + 
+                                              [("color", "color", "Use color")],
                                               default='metal-Al-eta')
     kPreset: bpy.props.EnumProperty(name="kPreset",
                                               description="",
-                                              items=[
-                                              ("metal-Ag-k", "Ag k", "Ag"),
-                                              ("metal-Au-k", "Au k", "Au"),
-                                              ("metal-Al-k", "Al K", "Al"),
-                                              ("metal-Cu-k", "Cu K", "Cu"),
-                                              ("metal-MgO-k", "MgO K", "MgO"),
-                                              ("metal-TiO2-k", "TiO2 K", "TiO2"),
-                                              ],
+                                              items=presets.MetalK,
                                               default='metal-Al-k')
     Eta : bpy.props.FloatProperty(default=1.5, min=1.0, max=999.0)
     RemapRoughness: bpy.props.BoolProperty(default=False)
@@ -2105,8 +2020,8 @@ class pbrtv4UniformgridVolume(PBRTV4TreeNode):
         res +='  "string type" [ "uniformgrid" ]\n'
         
         print(self.Bbox.bound_box)
-        res +='  "point3 p0" [ -0.3 -0.3 0 ]\n'
-        res +='  "point3 p1" [ 0.3 0.3 0.6 ]\n'
+        res +='  "point3 p0" [ -0.3 -0.3 0 ]\n' #test
+        res +='  "point3 p1" [ 0.3 0.3 0.6 ]\n' #test
         
         nx = self.Dim[0]
         ny = self.Dim[1]
@@ -2152,61 +2067,7 @@ class pbrtv4HomogeneousVolume(PBRTV4TreeNode):
     
     MediumPreset: bpy.props.EnumProperty(name="MediumPreset",
                                               description="",
-                                              items=[
-                                              ("Custom", "Custom", "Custom"),
-                                              ("Apple", "Apple", "Apple"),
-                                              ("Chicken1", "Chicken1", "Chicken1"),
-                                              ("Chicken2", "Chicken2", "Chicken2"),
-                                              ("Cream", "Cream", "Cream"),
-                                              ("Ketchup", "Ketchup", "Ketchup"),
-                                              ("Marble", "Marble", "Marble"),
-                                              
-                                              ("Potato", "Potato", "Potato"),
-                                              ("Skimmilk", "Skimmilk", "Skimmilk"),
-                                              ("Skin1", "Skin1", "Skin1"),
-                                              ("Skin2", "Skin2", "Skin2"),
-                                              ("Spectralon", "Spectralon", "Spectralon"),
-                                              ("Wholemilk", "Wholemilk", "Wholemilk"),
-                                              ("Lowfat Milk", "Lowfat Milk", "Lowfat Milk"),
-                                              ("Reduced Milk", "Reduced Milk", "Reduced Milk"),
-                                              ("Regular Milk", "Regular Milk", "Regular Milk"),
-                                              ("Espresso", "Espresso", "Espresso"),
-                                              
-                                              ("Mint Mocha Coffee", "Mint Mocha Coffee", "Mint Mocha Coffee"),
-                                              ("Lowfat Soy Milk", "Lowfat Soy Milk", "Lowfat Soy Milk"),
-                                              ("Regular Soy Milk", "Regular Soy Milk", "Regular Soy Milk"),
-                                              ("Lowfat Chocolate Milk", "Lowfat Chocolate Milk", "Lowfat Chocolate Milk"),
-                                              ("Regular Chocolate Milk", "Regular Chocolate Milk", "Regular Chocolate Milk"),
-                                              ("Coke", "Coke", "Coke"),
-                                              ("Pepsi", "Pepsi", "Pepsi"),
-                                              ("Sprite", "Sprite", "Sprite"),
-                                              ("Gatorade", "Gatorade", "Gatorade"),
-                                              
-                                              ("Chardonnay", "Chardonnay", "Chardonnay"),
-                                              ("White Zinfandel", "White Zinfandel", "White Zinfandel"),
-                                              ("Merlot", "Merlot", "Merlot"),
-                                              ("Budweiser Beer", "Budweiser Beer", "Budweiser Beer"),
-                                              ("Coors Light Beer", "Coors Light Beer", "Coors Light Beer"),
-                                              ("Clorox", "Clorox", "Clorox"),
-                                              ("Apple Juice", "Apple Juice", "Apple Juice"),
-                                              ("Cranberry Juice", "Cranberry Juice", "Cranberry Juice"),
-                                              ("Grape Juice", "Grape Juice", "Grape Juice"),
-                                              
-                                              ("Ruby Grapefruit Juice", "Ruby Grapefruit Juice", "Ruby Grapefruit Juice"),
-                                              ("White Grapefruit Juice", "White Grapefruit Juice", "White Grapefruit Juice"),
-                                              ("Shampoo", "Shampoo", "Shampoo"),
-                                              ("Strawberry Shampoo", "Strawberry Shampoo", "Strawberry Shampoo"),
-                                              ("Head & Shoulders Shampoo", "Head & Shoulders Shampoo", "Head & Shoulders Shampoo"),
-                                              ("Lemon Tea Powder", "Lemon Tea Powder", "Lemon Tea Powder"),
-                                              ("Orange Powder", "Orange Powder", "Orange Powder"),
-                                              ("Pink Lemonade Powder", "Pink Lemonade Powder", "Pink Lemonade Powder"),
-                                              ("Cappuccino Powder", "Cappuccino Powder", "Cappuccino Powder"),
-                                              ("Salt Powder", "Salt Powder", "Salt Powder"),
-                                              ("Sugar Powder", "Sugar Powder", "Sugar Powder"),
-                                              
-                                              ("Suisse Mocha Powder", "Suisse Mocha Powder", "Suisse Mocha Powder"),
-                                              ("Pacific Ocean Surface Water", "Pacific Ocean Surface Water", "Pacific Ocean Surface Water")
-                                              ],
+                                              items=presets.MediumPreset+[("Custom", "Custom", "Custom")],
                                               default='Custom')
     
     def init(self, context):
@@ -2277,61 +2138,7 @@ class pbrtv4CloudVolume(PBRTV4TreeNode):
     
     MediumPreset: bpy.props.EnumProperty(name="MediumPreset",
                                               description="",
-                                              items=[
-                                              ("Custom", "Custom", "Custom"),
-                                              ("Apple", "Apple", "Apple"),
-                                              ("Chicken1", "Chicken1", "Chicken1"),
-                                              ("Chicken2", "Chicken2", "Chicken2"),
-                                              ("Cream", "Cream", "Cream"),
-                                              ("Ketchup", "Ketchup", "Ketchup"),
-                                              ("Marble", "Marble", "Marble"),
-                                              
-                                              ("Potato", "Potato", "Potato"),
-                                              ("Skimmilk", "Skimmilk", "Skimmilk"),
-                                              ("Skin1", "Skin1", "Skin1"),
-                                              ("Skin2", "Skin2", "Skin2"),
-                                              ("Spectralon", "Spectralon", "Spectralon"),
-                                              ("Wholemilk", "Wholemilk", "Wholemilk"),
-                                              ("Lowfat Milk", "Lowfat Milk", "Lowfat Milk"),
-                                              ("Reduced Milk", "Reduced Milk", "Reduced Milk"),
-                                              ("Regular Milk", "Regular Milk", "Regular Milk"),
-                                              ("Espresso", "Espresso", "Espresso"),
-                                              
-                                              ("Mint Mocha Coffee", "Mint Mocha Coffee", "Mint Mocha Coffee"),
-                                              ("Lowfat Soy Milk", "Lowfat Soy Milk", "Lowfat Soy Milk"),
-                                              ("Regular Soy Milk", "Regular Soy Milk", "Regular Soy Milk"),
-                                              ("Lowfat Chocolate Milk", "Lowfat Chocolate Milk", "Lowfat Chocolate Milk"),
-                                              ("Regular Chocolate Milk", "Regular Chocolate Milk", "Regular Chocolate Milk"),
-                                              ("Coke", "Coke", "Coke"),
-                                              ("Pepsi", "Pepsi", "Pepsi"),
-                                              ("Sprite", "Sprite", "Sprite"),
-                                              ("Gatorade", "Gatorade", "Gatorade"),
-                                              
-                                              ("Chardonnay", "Chardonnay", "Chardonnay"),
-                                              ("White Zinfandel", "White Zinfandel", "White Zinfandel"),
-                                              ("Merlot", "Merlot", "Merlot"),
-                                              ("Budweiser Beer", "Budweiser Beer", "Budweiser Beer"),
-                                              ("Coors Light Beer", "Coors Light Beer", "Coors Light Beer"),
-                                              ("Clorox", "Clorox", "Clorox"),
-                                              ("Apple Juice", "Apple Juice", "Apple Juice"),
-                                              ("Cranberry Juice", "Cranberry Juice", "Cranberry Juice"),
-                                              ("Grape Juice", "Grape Juice", "Grape Juice"),
-                                              
-                                              ("Ruby Grapefruit Juice", "Ruby Grapefruit Juice", "Ruby Grapefruit Juice"),
-                                              ("White Grapefruit Juice", "White Grapefruit Juice", "White Grapefruit Juice"),
-                                              ("Shampoo", "Shampoo", "Shampoo"),
-                                              ("Strawberry Shampoo", "Strawberry Shampoo", "Strawberry Shampoo"),
-                                              ("Head & Shoulders Shampoo", "Head & Shoulders Shampoo", "Head & Shoulders Shampoo"),
-                                              ("Lemon Tea Powder", "Lemon Tea Powder", "Lemon Tea Powder"),
-                                              ("Orange Powder", "Orange Powder", "Orange Powder"),
-                                              ("Pink Lemonade Powder", "Pink Lemonade Powder", "Pink Lemonade Powder"),
-                                              ("Cappuccino Powder", "Cappuccino Powder", "Cappuccino Powder"),
-                                              ("Salt Powder", "Salt Powder", "Salt Powder"),
-                                              ("Sugar Powder", "Sugar Powder", "Sugar Powder"),
-                                              
-                                              ("Suisse Mocha Powder", "Suisse Mocha Powder", "Suisse Mocha Powder"),
-                                              ("Pacific Ocean Surface Water", "Pacific Ocean Surface Water", "Pacific Ocean Surface Water")
-                                              ],
+                                              items=presets.MediumPreset+[("Custom", "Custom", "Custom")],
                                               default='Custom')
     
     def init(self, context):
