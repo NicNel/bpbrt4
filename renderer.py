@@ -164,6 +164,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             export_result +='Sampler "{}"\n'.format(sampler)
             export_result +='    "integer pixelsamples" [ {} ]\n'.format(samplesCount)
             
+            #integrator
+            export_result += self.export_Integrator(props)
+            
             #colorspace
             colorSpace = bpy.context.scene.pbrtv4.pbrt_ColorSpace
             export_result +='ColorSpace "{}"\n'.format(colorSpace)
@@ -178,12 +181,33 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             #export bsdf
             mat_name = "preview_mat"
             mat = bpy.context.view_layer.objects.active.active_material
-            materialData = ''.join(GeometryExporter.export_mat_get(mat, mat_name))
+            info = GeometryExporter.export_mat_get(mat, mat_name)
+            materialData = ''.join(info["data"])
             bsdfFile = os.path.join(props["previewFolder"], "preview_bsdf.pbrt")
+            shapeParamFile = os.path.join(props["previewFolder"], "shape_param.pbrt")
             
             with open(bsdfFile, 'w') as f:
                 f.write(materialData)
                 f.close()
+                
+            with open(shapeParamFile, 'w') as f:
+                f.write("#shape parameters\n")
+                if not info["emission"] == None:
+                    f.write(info["emission"].getEmissionStr())
+                if not info["medium"] == None:
+                    name = info["medium"][0]
+                    str = '    MediumInterface "" "{}"\n'.format(name)
+                    f.write(str)
+                
+                obj_name = "preview_obj"
+                obj = "geometry/"+obj_name+".ply"
+                shape = '    '+'Shape "plymesh"\n'
+                shape += '    '+'    '+'"string filename" "{}"\n'.format(obj)
+                if not info["alpha"] == None:
+                    shape += '    '+'    '+'"float alpha" [{}]\n'.format(info["alpha"])
+                f.write(shape)
+                f.close()
+                
             props["scale_x"] = self.size_x
             props["scale_y"] = self.size_y
             self.RunPreviewRender(props, filename)
@@ -249,7 +273,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         props['pbrt_rendered_file'] = filename
     
     def exportSettings(self, depsgraph, props):
-        print (props['pbrt_samples'], props['pbrt_max_depth'],props['pbrt_sampler'],props['pbrt_integrator'],props['pbrt_compute_mode'],props['pbrt_project_dir'])
+        print ("Samples:", props['pbrt_samples'], "Depth:", props['pbrt_max_depth'], "Sampler:", props['pbrt_sampler'], "Integrator:", props['pbrt_integrator'], "Mode:", props['pbrt_compute_mode'], "Folder:", props['pbrt_project_dir'])
         #print ("samples: {}",bpy.types.Scene.pbrtv4.pbrtIntegratorPathSamples)
         #print ("depth: {}",bpy.types.Scene.pbrtv4.pbrtIntegratorMaxdepth)
         
@@ -300,12 +324,16 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         geometryFile =os.path.join(props['pbrt_project_dir'], "geometry.pbrt")
         materialFile = os.path.join(props['pbrt_project_dir'], "materials.pbrt")
         
+        #delete files or not?
+        '''
         if os.path.isfile(geometryFile) or os.path.islink(geometryFile):
             print("delete geometry file: ", geometryFile)
             os.unlink(geometryFile)
         if os.path.isfile(materialFile) or os.path.islink(materialFile):
             print("delete materials file: ", materialFile)
             os.unlink(materialFile)
+        '''
+        
         # Switch to object mode before exporting stuff, so everything is defined properly
         if bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -379,9 +407,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         if cam_ob is None:
             print("no scene camera,aborting")
         elif cam_ob.type == 'CAMERA':
-            print("regular scene cam")
-            print("render res: ", scene.render.resolution_x , " x ", scene.render.resolution_y)
-            print("Exporting camera: ", cam_ob.name)
+            scale = scene.render.resolution_percentage / 100.0
+            sx = int(scene.render.resolution_x * scale)
+            sy = int(scene.render.resolution_y * scale)
+            print("render resolution: ", sx , "x", sy)
+            cam_type = cam_ob.data.pbrtv4_camera.pbrtv4_camera_type
+            print("exporting camera: ", cam_ob.name,", type:",cam_type)
 
             export_result+="Scale -1 1 1 \n#avoid the 'flipped image' bug..\n"
 
@@ -400,7 +431,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                          up_point[0],up_point[1],up_point[2])
 
             fov = self.calcFovRAD(scene.render.resolution_x, scene.render.resolution_y, cam_ob.data.angle)
-            if cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "perspective":
+            if cam_type == "perspective":
                 export_result+='Camera "perspective"\n'
                 export_result+='    "float fov" [%s]\n' % (fov)
                 #if cam_ob.data.clip_start>0.001:
@@ -412,7 +443,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 if not shiftX==0 or not shiftY==0:
                     export_result+='    "float shiftX" [%s]\n' % (shiftX)
                     export_result+='    "float shiftY" [%s]\n' % (shiftY)
-            elif cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "realistic":
+            elif cam_type == "realistic":
                 export_result+='Camera "realistic"\n'
                 #get lens file
                 currDir = os.path.abspath(os.path.dirname(__file__))
@@ -433,14 +464,14 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 f_value = cam_ob.data.pbrtv4_camera.pbrtv4_camera_lensradius
                 export_result+='    "float aperturediameter" [%s]\n' % (f_value)
                 export_result+='    "float focusdistance" [%s]\n' % (dist)
-            elif cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "orthographic":
+            elif cam_type == "orthographic":
                 export_result+='Camera "orthographic"\n'
-            elif cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "spherical":
+            elif cam_type == "spherical":
                 export_result+='Camera "spherical"\n'
                 export_result+='    "string mapping" ["equirectangular"]\n'
                 
             #use dof
-            if cam_ob.data.pbrtv4_camera.pbrtv4_camera_use_dof and cam_ob.data.pbrtv4_camera.pbrtv4_camera_type == "perspective":
+            if cam_ob.data.pbrtv4_camera.pbrtv4_camera_use_dof and cam_type == "perspective":
                 target_dist = -1
                 if cam_ob.data.pbrtv4_camera.pbrtv4_camera_focus_obj:
                     target_dist = (cam_ob.data.pbrtv4_camera.pbrtv4_camera_focus_obj.location - cam_ob.location).length

@@ -17,6 +17,42 @@ import numpy as np
 import signal
 from subprocess import check_output
 
+#store completed objects parts by materials
+class MatInfo(object):
+    def __init__(self, _name):
+        self.name = _name # dict containing entries like mesh_name : [exported materials]
+        self.preset = "" #preset name
+        self.isEmissive = False #dict name, isEm, color
+        self.emColor = []
+        self.scale = 1.0;
+        self.mediumName = ""
+        self.temperature = 6500
+        self.alpha = 1.0
+        
+    def getEmissionStr(self):
+        if self.isEmissive:
+            result = '    '+'AreaLightSource "diffuse"\n'
+            if self.preset == 'color':
+                result += '    '+'    '+'"rgb L" [ {} {} {} ]\n'.format(self.emColor[0], self.emColor[1], self.emColor[2])
+            elif self.preset == 'blackbody':
+                result += "    "+"    "+'"blackbody L" [{}]\n'.format(self.temperature)
+            else:
+                result += '    '+'    '+'"spectrum L" "{}"\n'.format(self.preset)
+            result += "    "+"    "+'"float scale" [{}]\n'.format(self.scale)
+            return result
+        return ""
+    @staticmethod
+    def CreateInfo(_name, _isEm = False, _color = [0,0,0], _power = 0, _preset = "", _temp = 6500):
+        matInfo = MatInfo(_name)
+        matInfo.isEmissive = _isEm
+        matInfo.preset = _preset
+        matInfo.scale = _power
+        matInfo.emColor.append(_color[0]);
+        matInfo.emColor.append(_color[1]);
+        matInfo.emColor.append(_color[2]);
+        matInfo.temperature = _temp
+        return matInfo
+
 class DispInfo(object): #displacement information parameters
     def __init__(self, _name):
         self.name = "displacement"
@@ -258,6 +294,23 @@ def stopPbrt():
     name = "pbrt.exe"
     stop_process(name)
 
+#from BlendLuxCore
+def get_theme(context):
+    current_theme_name = context.preferences.themes.items()[0][0]
+    return context.preferences.themes[current_theme_name]
+
+def get_output_nodes(node_tree, ID):
+    """ Return a list with all output nodes in a node tree """
+    #print("NODE ID: "+ID)
+    output_type = ID
+    nodes = []
+
+    for node in node_tree.nodes:
+        node_type = getattr(node, "bl_idname", None)
+        if node_type == output_type:
+            nodes.append(node)
+    return nodes
+    
 def register():
     pass
 
