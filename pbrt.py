@@ -25,6 +25,7 @@ def get_panels():
 def registerPbrt():
     #print (tempfile.gettempdir()+'/')
     #register render class
+    #bpy.types.RenderEngine.pbrtv4_isPostProcess = bpy.props.BoolProperty(name="pbrtv4_isPostProcess", default=True)
     bpy.utils.register_class(renderer.PBRTRenderEngine)
     properties.register()
     renderSettings.register()
@@ -35,6 +36,7 @@ def registerPbrt():
     
 def unregisterPbrt():
     bpy.utils.unregister_class(renderer.PBRTRenderEngine)
+    #del bpy.types.RenderEngine.pbrtv4_isPostProcess
     properties.unregister()
     renderSettings.unregister()
     nodeSettings.unregister()

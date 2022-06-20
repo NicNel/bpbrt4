@@ -1,5 +1,5 @@
 import bpy
-
+import os
 import tempfile
 from ..utils import util
 
@@ -65,18 +65,18 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
                                                  ('TEV', "Tev", "Tev")],
                                           default='EDITOR')
     pbrt_compute_mode: bpy.props.EnumProperty(name="pbrt_compute_mode",
-                                          description="Compute device",
+                                          description="compute mode",
                                           items=[('CPU', "CPU", "CPU"),
                                                  ('GPU', "GPU", "GPU")],
                                           default='CPU')
     pbrt_film_type: bpy.props.EnumProperty(name="pbrt_film_type",
-                                          description="Compute device",
+                                          description="film type",
                                           items=[('rgb', "rgb", "rgb output"),
                                                  ('gbuffer', "gbuffer", "gbuffer output"),
                                                  ('spectral', "spectral", "spectral output")],
                                           default='rgb')
     pbrt_integrator: bpy.props.EnumProperty(name="pbrt_integrator",
-                                          description="Compute device",
+                                          description="integrator",
                                           items=[("PATH", "path", "Path Integrator"),
                                                  ("SIMPLEVOLPATH", "simplevolpath", "Simple Volumetric Path Integrator"),
                                                  ("VOLPATH", "volpath", "Volumetric Path Integrator"),
@@ -89,7 +89,7 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
     
     #pixel filter 
     pbrt_pfilter_type: bpy.props.EnumProperty(name="pbrt_pfilter_type",
-                                          description="Compute device",
+                                          description="pfilter type",
                                           items=[('box', "box", "box filter"),
                                                  ('gaussian', "gaussian", "gaussian filter"),
                                                  ('mitchell', "mitchell", "mitchell filter"),
@@ -202,11 +202,21 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
     pbrt_prev_fov: bpy.props.FloatProperty(name="pbrt_prev_fov",
                                                description="Preview camera fov",
                                                min=1,
-                                               default=15)
+                                               default=18)
     pbrt_prev_samples: bpy.props.IntProperty(
         name="pbrt_prev_samples",
         default=32,
         min=0
+    )
+    pbrt_prev_obj: bpy.props.EnumProperty(
+        name="pbrt_prev_obj",
+        description="pbrt prev obj type",
+        items=[
+            ("sphere", "sphere", "sphere"),
+            ("cube", "cube", "cube"),
+            ("column", "column", "column")
+            ],
+            default = "sphere"
     )
     
     #film properties
@@ -273,6 +283,31 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
         name="pbrt_use_realDisp",
         default=True
     )
+    
+    #bloom
+    pbrt_bloom_lvl: bpy.props.FloatProperty(name="pbrt_bloom_lvl",
+                                               description="pbrt pixel filter xradius",
+                                               min=0,
+                                               default=1.0)
+    pbrt_bloom_scale: bpy.props.FloatProperty(name="pbrt_bloom_scale",
+                                               description="pbrt pixel filter xradius",
+                                               min=0,
+                                               default=0.3)
+    pbrt_bloom_width: bpy.props.IntProperty(
+        name="pbrt_bloom_width",
+        default=15,
+        min=0
+    )
+    pbrt_ACES_toFilm: bpy.props.BoolProperty(
+        name="pbrt_ACES_toFilm",
+        default=False
+    )
+    pbrt_apply_bloom: bpy.props.BoolProperty(
+        name="pbrt_apply_bloom",
+        default=True
+    )
+                                               
+                                               
     #print ("properties REGISTEREDDDD!!!")
 
 class runRenderOperator(bpy.types.Operator):
@@ -284,6 +319,15 @@ class runRenderOperator(bpy.types.Operator):
         #bpy.ops.mesh.primitive_cube_add()
         #bpy.context.scene.render.RunTestOperator()
         return {"FINISHED"}
+class runPreviewOperator(bpy.types.Operator):
+    bl_idname = 'pbrtv4.start_preview_render'
+    bl_label = 'start preview render'
+    bl_options = {"REGISTER", "UNDO"}
+    def execute(self, context):
+        #not the best solution, but it raises material to update preview...
+        context.material.preview_render_type = context.material.preview_render_type
+        #bpy.ops.render.render({'is_preview': "True"}, 'EXEC_DEFAULT', animation=False)
+        return {"FINISHED"}
 class runRenderAnimOperator(bpy.types.Operator):
     bl_idname = 'pbrtv4.start_render_anim'
     bl_label = 'start render animation'
@@ -291,38 +335,83 @@ class runRenderAnimOperator(bpy.types.Operator):
     def execute(self, context):
         bpy.ops.render.render('INVOKE_DEFAULT', animation=True, write_still=True)
         return {"FINISHED"}
-class exportRenderOperator(bpy.types.Operator):
-    bl_idname = 'pbrtv4.export_for_render'
-    bl_label = 'export pbrt scene'
+
+class postProcessOperator(bpy.types.Operator):
+    bl_idname = 'pbrtv4.post_process'
+    bl_label = 'post processing'
     bl_options = {"REGISTER", "UNDO"}
     def execute(self, context):
-        #bpy.ops.render.export_only = True
-        #bpy.ops.render.render('INVOKE_DEFAULT', animation=False, write_still=True)
-        #engineName = context.scene.render.engine
-        #print(type(engineName),engineName)
-        #print(context.scene.render)
-        #engineProps = eval('context.scene.' + engineName.lower() + '.bl_rna.properties')
-        #print(type(engineProps),engineProps)
-        #for prop in engineProps:
-        #    print(prop)
-        #cls = bpy.context.scene.render.engine
-        #print(type(cls),cls)
-        #cls = bpy.types.PBRTRenderEngine
-        #cls.RunTestOperator()
-        export_only = bpy.context.scene.pbrtv4.pbrt_export_scene_only
-        bpy.context.scene.pbrtv4.pbrt_export_scene_only = True
+        #get renderer
+        util.is_postProcess = True
         bpy.ops.render.render('INVOKE_DEFAULT', animation=False, write_still=True)
+        '''
+        for renderer in bpy.types.RenderEngine.__subclasses__():
+            if renderer.bl_idname == "PBRTV4":
+                renderer.is_busy = True
+                bpy.ops.render.render('INVOKE_DEFAULT', animation=False, write_still=True)
+                #renderer.is_PostProcess = False
+        '''     
+        '''
+        for renderer in bpy.types.RenderEngine.__subclasses__():
+            if renderer.bl_idname == "PBRTV4":
+                #renderer.RunTestOperator(renderer)
+                props = {}
+                renderer.getProps(renderer,props)
+                file = props['pbrt_rendered_file']
+                outImg = os.path.join(props['pbrt_project_dir'], 'postProcess.exr')
+                self.bloomImage(file, outImg, props)
+                #self.copyData(outImg)
+                '''
         return {"FINISHED"}
+        
+    def copyData(self, img):
+        img = bpy.data.images.load(img, check_existing=False)
+        #layerPass = result.layers[0].passes.find_by_name("Combined",active_view)
+        #bpy.data.images["Render Result"].pixels[:]
+        
+        target = bpy.data.images.new('Render Result', 1024, 102) #bpy.data.images["Render Result"]
+        
+        print(target.size[0], target.size[1],"Size!!!!!!!!!")
+        
+        source_pixels = img.pixels[:]
+        target_pixels = list(target.pixels)
+        #bpy.data.images["Render Result"].pixels[:] = target_pixels
+        
+        for i in range(0, len(source_pixels), 4):
+            target_pixels[i+3] = source_pixels[i]
+        
+        #bpy.data.images["Render Result"].update()
+        target.pixels[:] = target_pixels
+        target.update()
+        
+        bpy.data.images.remove(img)
+    
+    def bloomImage(self, img, outImg, props):
+        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        
+        iter = ["--iterations", str(5)]
+        level = ["--level", str(1)]
+        out = ["--outfile", outImg]
+        scale = ["--scale", str(0.3)]
+        width = ["--width", str(15)]
+        file = [img]
+        
+        cmd = [ pbrtImgtoolPath, "bloom"]+iter+level+out+scale+width+file
+        util.runCmd(cmd)
+        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
+        bpy.ops.image.open(filepath=outImg)
         
 def register():
     bpy.utils.register_class(runRenderOperator)
     bpy.utils.register_class(runRenderAnimOperator)
-    #bpy.utils.register_class(exportRenderOperator)
+    bpy.utils.register_class(runPreviewOperator)
+    bpy.utils.register_class(postProcessOperator)
     
     bpy.types.Object.pbrtv4_isPortal = bpy.props.BoolProperty(
         name="pbrtv4_isPortal",
         default=False
     )
+    '''
     bpy.types.Material.pbrtv4_isEmissive = bpy.props.BoolProperty(
         name="pbrtv4_isEmissive",
         default=False
@@ -362,18 +451,21 @@ def register():
                                                  ("stdillum-F12", "stdillum-F12", "stdillum-F12"),
                                                  ("illum-acesD60", "illum-acesD60", "illum-acesD60")],
                                           default='stdillum-D65')
+    '''                                      
     util.safe_register_class(PBRTV4RenderSettings)
     bpy.types.Scene.pbrtv4 = bpy.props.PointerProperty(type=PBRTV4RenderSettings)
 
 def unregister():
     bpy.utils.unregister_class(runRenderOperator)
     bpy.utils.unregister_class(runRenderAnimOperator)
-    #bpy.utils.unregister_class(exportRenderOperator)
+    bpy.utils.unregister_class(runPreviewOperator)
+    bpy.utils.unregister_class(postProcessOperator)
     
     del bpy.types.Object.pbrtv4_isPortal
-    del bpy.types.Material.pbrtv4_isEmissive
-    del bpy.types.Material.pbrtv4_emission_power
-    del bpy.types.Material.pbrtv4_emission_color
+    
+    #del bpy.types.Material.pbrtv4_isEmissive
+    #del bpy.types.Material.pbrtv4_emission_power
+    #del bpy.types.Material.pbrtv4_emission_color
     
     del bpy.types.Scene.pbrtv4
     util.safe_unregister_class(PBRTV4RenderSettings)

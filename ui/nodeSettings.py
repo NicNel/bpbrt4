@@ -60,6 +60,7 @@ node_categories = [
         NodeItem("pbrtv4CloudVolume")
         ]),
     PBRTV4NodeCategory("PBRTV4_TEXTURES", "PBRTV4 Textures", items=[
+        NodeItem("pbrtv4NodeConstant"),
         NodeItem("pbrtv4NodeMix"),
         #NodeItem("pbrtv4NodeHSV"),
         NodeItem("pbrtv4NodeScale"),
@@ -67,11 +68,15 @@ node_categories = [
         #NodeItem("pbrtv4NodeTexture2d"),
         NodeItem("pbrtv4NodeImageTexture2d")
         ]),
+    PBRTV4NodeCategory("PBRTV4_SHAPE_PAR", "PBRTV4 Shape parameters", items=[
+        NodeItem("pbrtv4AreaEmitter"),
+        NodeItem("pbrtv4Displacement")
+        ]),
     PBRTV4NodeCategory("PBRTV4_UTILS", "PBRTV4 Utils", items=[
-        NodeItem("pbrtv4NodeConstant"),
+        #NodeItem("pbrtv4NodeConstant"),
         NodeItem("PBRTV4Mapping2d"),
-        NodeItem("pbrtv4Displacement"),
-        NodeItem("pbrtv4AreaEmitter")
+        #NodeItem("pbrtv4Displacement"),
+        #NodeItem("pbrtv4AreaEmitter")
         ]),
     ]
 
@@ -143,7 +148,7 @@ class PBRTV4TreeNode(Node):
 class pbrtv4NoneMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4None'
-    bl_label = 'none'
+    bl_label = 'interface'
     bl_icon = 'MATERIAL'
 
     def init(self, context):
@@ -1820,7 +1825,8 @@ class pbrtv4NodeMapping2d(PBRTV4TreeNode):
     #"float udelta" [ 0 ]
     #"float vdelta" [ 0 ]
     def to_string(self, list, data):
-        res = '    "string wrap" [ "repeat" ]\n'
+        res = ""
+    #    res = '    "string wrap" [ "repeat" ]\n'
         res +='    "string mapping" [ "{}" ]\n'.format(self.MappingType)
         
         res +='    "float uscale" [ {} ]\n'.format(self.UValue)

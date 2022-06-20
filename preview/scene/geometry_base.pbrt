@@ -1,0 +1,38 @@
+AttributeBegin
+    NamedMaterial "preview_mat"
+    Include "shape_param.pbrt"
+AttributeEnd
+AttributeBegin
+    Transform [ 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 6.846910 0.000000 1.102965 1.000000 ]
+    NamedMaterial "plane_mat2"
+    Shape "plymesh"
+        "string filename" [ "geometry/main_plane-plane_mat2.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ -7.498818 -0.000001 0.000000 0.000000 0.000000 -0.000001 -7.498818 0.000000 0.000001 -7.498818 0.000001 0.000000 1.301994 12.838387 5.616893 1.000000 ]
+    AreaLightSource "diffuse"
+        "spectrum L" "stdillum-D65"
+        "float scale" [4.0]
+    NamedMaterial "light_mat"
+    Shape "plymesh"
+        "string filename" [ "geometry/left_plane-light_mat.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ 7.498818 0.000000 0.000000 0.000000 0.000000 0.000001 -7.498818 0.000000 0.000000 7.498818 0.000001 0.000000 1.585427 -12.838390 5.616893 1.000000 ]
+    AreaLightSource "diffuse"
+        "spectrum L" "stdillum-D65"
+        "float scale" [1.0]
+    NamedMaterial "light_mat2"
+    Shape "plymesh"
+        "string filename" [ "geometry/right_plane-light_mat2.ply" ]
+AttributeEnd
+AttributeBegin
+    Transform [ 7.498818 0.000000 0.000000 0.000000 0.000000 -7.498818 -0.000001 0.000000 0.000000 0.000001 -7.498818 0.000000 1.585427 1.365557 17.089722 1.000000 ]
+    AreaLightSource "diffuse"
+        "spectrum L" "stdillum-D65"
+        "float scale" [0.5]
+    NamedMaterial "light_mat2"
+    Shape "plymesh"
+        "string filename" [ "geometry/top_plane-light_mat2.ply" ]
+AttributeEnd
+

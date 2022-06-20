@@ -75,10 +75,26 @@ class ObjectInfo(object):
         result += '    ObjectBegin "{}"\n'.format(self.name)
         #loop parts
         for i in range(len(self.parts)):
-            result += self.materials[i].getEmissionStr()
+            if self.materials[i].isEmissive:
+                print('! WARN !', "Area lights doesn't support instancing!")
+            #result += self.materials[i].getEmissionStr() #Instances does not support emission!
+            if not self.materials[i].mediumName == "":
+                result += "AttributeBegin\n"
+                result += '    MediumInterface "" "{}"\n'.format(self.materials[i].mediumName)
             result += '        NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
-            result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
+            
+            if not self.materials[i].alpha == 1.0:
+                alpha = self.materials[i].alpha
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+                result += '    '+'    '+'"float alpha" [{}]\n'.format(alpha)
+            else:
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+            #result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
+            if not self.materials[i].mediumName == "":
+                result += "AttributeEnd\n"
         #loop parts
         result += "    ObjectEnd\n"
         result += "AttributeEnd\n"
@@ -624,7 +640,8 @@ class GeometryExporter:
                 else:
                     #check if object has linked mesh data:
                     #evaluated_obj.data.name //for linked data check
-                    data_name = evaluated_obj.data.name
+                    data_name = evaluated_obj.original.data.name #evaluated_obj.data.name #fix for blender>3 (Seems like a bug in blender. All objects, that have modifiers, returns data name "Mesh") 
+                    #print("DATA NAME:",evaluated_obj.data.name,"OBJECT NAME:",evaluated_obj.name,"ORIGIN NAME:",evaluated_obj.original.name,"ORIGIN DATA NAME:",evaluated_obj.original.data.name)
                     if linked_as_instance and data_name in self.linkedData:
                         #export as instance:
                         #print("Export Linked As Instance Object")

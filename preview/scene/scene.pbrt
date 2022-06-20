@@ -1,0 +1,18 @@
+#pbrt v4.0 Scene File
+#Exported by bpbrt Blender Exporter
+Scale -1 1 1 
+#avoid the 'flipped image' bug..
+
+LookAt	-7.0 0.0 1.0
+	-6.0 -4.371138828673793e-08 1.0
+	-4.371138828673793e-08 1.910685676922942e-15 1.0
+
+#LookAt	-7.0 0.0 5.0
+#	-6.133974552154541 -3.785517321830412e-08 4.5
+#	0.4999999701976776 -2.1855694143368964e-08 0.866025447845459
+
+Include "settings.pbrt"
+    
+WorldBegin
+Include "bsdfs_base.pbrt"
+Include "geometry_base.pbrt"

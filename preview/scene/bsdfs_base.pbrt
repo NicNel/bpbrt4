@@ -1,0 +1,32 @@
+Texture "plane_mat2::pbrtv4NodeCheckerboard::4" "spectrum" "checkerboard"
+  "rgb tex1" [ 0.33 0.33 0.33 ]
+  "rgb tex2" [ 0.2 0.2 0.2 ]
+    "string mapping" [ "uv" ]
+    "float uscale" [ 10.0 ]
+    "float vscale" [ 10.0 ]
+    "float udelta" [ 0.0 ]
+    "float vdelta" [ 0.0 ]
+MakeNamedMaterial "plane_mat2::pbrtv4Diffuse::0"
+  "string type" [ "diffuse" ]
+  "texture reflectance" ["plane_mat2::pbrtv4NodeCheckerboard::4"]
+MakeNamedMaterial "plane_mat2::pbrtv4Coateddiffuse::3"
+  "string type" [ "coateddiffuse" ]
+  "texture reflectance" ["plane_mat2::pbrtv4NodeCheckerboard::4"]
+  "float roughness" [ 0.20000000298023224 ]
+  "float eta" [1.5]
+  "float thickness" [0.009999999776482582]
+  "bool remaproughness" false
+  "integer maxdepth" [10]
+  "integer nsamples" [1]
+MakeNamedMaterial "plane_mat2"
+  "string type" [ "mix" ]
+  "float amount" [ 0.5 ]
+  "string materials" [ "plane_mat2::pbrtv4Diffuse::0" "plane_mat2::pbrtv4Coateddiffuse::3" ]
+MakeNamedMaterial "light_mat"
+  "string type" [ "diffuse" ]
+  "rgb reflectance" [ 0.800000011920929 0.800000011920929 0.800000011920929 ]
+MakeNamedMaterial "light_mat2"
+  "string type" [ "diffuse" ]
+  "rgb reflectance" [ 0.800000011920929 0.800000011920929 0.800000011920929 ]
+
+Include "preview_bsdf.pbrt"

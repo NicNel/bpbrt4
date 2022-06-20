@@ -60,9 +60,80 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             if not self.is_busy:
                 self.PreviewRender(depsgraph)
         else:
-            self.FinalRender(depsgraph)
+            if not util.is_postProcess:
+                self.FinalRender(depsgraph)
+            else:
+                self.postProcess(depsgraph)
         #free
         #self.free_blender_memory()
+        
+    def postProcess(self, depsgraph):
+        util.is_postProcess = False
+        props = {}
+        self.getProps(props)
+        file = props['pbrt_rendered_file']
+        outImg = os.path.join(props['pbrt_project_dir'], 'postProcess.exr')
+        if props['pbrt_film_type'] == 'gbuffer':
+            if props['pbrt_run_denoiser'] == True:
+                if props['pbrt_denoiser_type'] == "optix":
+                    file = os.path.join(props['pbrt_project_dir'], 'denoised.exr')
+                else:
+                    file = os.path.join(props['pbrt_project_dir'], 'denoisedOidn.exr')
+        inputFile = file
+        changed = False
+        if bpy.context.scene.pbrtv4.pbrt_ACES_toFilm:
+            self.convertImage(inputFile, outImg, props)
+            inputFile = outImg
+            changed = True
+        if bpy.context.scene.pbrtv4.pbrt_apply_bloom:
+            self.bloomImage(inputFile, outImg, props)
+            inputFile = outImg
+            changed = True
+        if not changed:
+            outImg = inputFile
+        scene = depsgraph.scene
+        scale = scene.render.resolution_percentage / 100.0
+        sx = int(scene.render.resolution_x * scale)
+        sy = int(scene.render.resolution_y * scale)
+        self.LoadResult(outImg, sx, sy)
+        
+    def bloomImage(self, img, outImg, props):
+        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        
+        lv = bpy.context.scene.pbrtv4.pbrt_bloom_lvl
+        sc = bpy.context.scene.pbrtv4.pbrt_bloom_scale
+        wdth = bpy.context.scene.pbrtv4.pbrt_bloom_width
+        
+        iter = ["--iterations", str(5)]
+        level = ["--level", str(lv)]
+        out = ["--outfile", outImg]
+        scale = ["--scale", str(sc)]
+        width = ["--width", str(wdth)]
+        file = [img]
+        
+        cmd = [ pbrtImgtoolPath, "bloom"]+iter+level+out+scale+width+file
+        util.runCmd(cmd)
+        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
+        #bpy.ops.image.open(filepath=outImg)
+        
+    def convertImage(self, img, outImg, props):
+        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        
+        #lv = bpy.context.scene.pbrtv4.pbrt_bloom_lvl
+        #sc = bpy.context.scene.pbrtv4.pbrt_bloom_scale
+        #wdth = bpy.context.scene.pbrtv4.pbrt_bloom_width
+        
+        toFilmic = ["--aces-filmic"]
+        #level = ["--level", str(lv)]
+        out = ["--outfile", outImg]
+        #scale = ["--scale", str(sc)]
+        #width = ["--width", str(wdth)]
+        file = [img]
+        
+        cmd = [ pbrtImgtoolPath, "convert"]+out+toFilmic+file
+        util.runCmd(cmd)
+        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
+        #bpy.ops.image.open(filepath=outImg)
     
     def update_frame_th(self):
         while True:
@@ -199,7 +270,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                     str = '    MediumInterface "" "{}"\n'.format(name)
                     f.write(str)
                 
-                obj_name = "preview_obj"
+                obj_name = "preview_"+bpy.context.scene.pbrtv4.pbrt_prev_obj
                 obj = "geometry/"+obj_name+".ply"
                 shape = '    '+'Shape "plymesh"\n'
                 shape += '    '+'    '+'"string filename" "{}"\n'.format(obj)
@@ -344,7 +415,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         #export displacement
         if props['pbrt_use_realDisp']:
-            print("Preparing displacement data and convert meshes\n")
+            print("Preparing displacement data and converting meshes...\n")
             for dInfo in self.geometry_exporter.dispData:
                 self.doDisplacement(props, dInfo)
         
@@ -658,6 +729,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         export_result +='AttributeEnd\n'
         return export_result
+        
     def CreateNishitaSky(self, props, albedo, elevation, turbidity, res, file):
         itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
         cmd = [ itoolExecPath, "makesky", "--albedo", str(albedo), "--elevation", str(elevation), "--outfile", file, "--turbidity", str(turbidity), "--resolution", str(res)]
@@ -793,10 +865,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         denoiserExecPath = util.switchpath(props['pbrt_denoiser_dir'])+'/'+'Denoiser.exe'
         cmd = [ denoiserExecPath, "-i", beauty, "-a", albedo, "-n", normal, "-o", result]
         util.runCmd(cmd)
+        
     def DenoiseOptix(self, props, buffer, result):
         pbrtImgtoolPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
         cmd = [ pbrtImgtoolPath, "denoise-optix", buffer, "-outfile", result]
         util.runCmd(cmd)
+        
     def DenoiseExternalOIDN(self, props, beauty, albedo, normal, result):
         denoisedPfm = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.pfm'.format("denoised")
         
@@ -852,7 +926,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
         bpy.ops.image.open(filepath=outImagePath)
-        
+    
     def RunTestOperator(self):
         print("Operator test!!!!!!!!!!!")
         

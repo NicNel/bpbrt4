@@ -17,6 +17,8 @@ import numpy as np
 import signal
 from subprocess import check_output
 
+is_postProcess = False
+
 #store completed objects parts by materials
 class MatInfo(object):
     def __init__(self, _name):
