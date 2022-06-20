@@ -25,41 +25,6 @@ import mathutils
 #AreaLightSource "diffuse"
         #"rgb L" [ 15.258819 12.083925 9.589462 ]
 
-#store completed objects parts by materials
-class MatInfo(object):
-    def __init__(self, _name):
-        self.name = _name # dict containing entries like mesh_name : [exported materials]
-        self.preset = "" #preset name
-        self.isEmissive = False #dict name, isEm, color
-        self.emColor = []
-        self.scale = 1.0;
-        self.mediumName = ""
-        self.temperature = 6500
-        
-    def getEmissionStr(self):
-        if self.isEmissive:
-            result = '    '+'AreaLightSource "diffuse"\n'
-            if self.preset == 'color':
-                result += '    '+'    '+'"rgb L" [ {} {} {} ]\n'.format(self.emColor[0], self.emColor[1], self.emColor[2])
-            elif self.preset == 'blackbody':
-                result += "    "+"    "+'"blackbody L" [{}]\n'.format(self.temperature)
-            else:
-                result += '    '+'    '+'"spectrum L" "{}"\n'.format(self.preset)
-            result += "    "+"    "+'"float scale" [{}]\n'.format(self.scale)
-            return result
-        return ""
-    @staticmethod
-    def CreateInfo(_name, _isEm = False, _color = [0,0,0], _power = 0, _preset = "", _temp = 6500):
-        matInfo = MatInfo(_name)
-        matInfo.isEmissive = _isEm
-        matInfo.preset = _preset
-        matInfo.scale = _power
-        matInfo.emColor.append(_color[0]);
-        matInfo.emColor.append(_color[1]);
-        matInfo.emColor.append(_color[2]);
-        matInfo.temperature = _temp
-        return matInfo
-        
 class ObjectInfo(object):
     def __init__(self, _name):
         self.parts = [] # dict containing entries like mesh_name : [exported materials]
@@ -90,7 +55,15 @@ class ObjectInfo(object):
                 result += '    MediumInterface "" "{}"\n'.format(self.materials[i].mediumName)
             result += '    NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
-            result += '    Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
+            
+            if not self.materials[i].alpha == 1.0:
+                alpha = self.materials[i].alpha
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+                result += '    '+'    '+'"float alpha" [{}]\n'.format(alpha)
+            else:
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
             if not self.materials[i].mediumName == "":
                 result += "AttributeEnd\n"
         #loop parts
@@ -102,10 +75,26 @@ class ObjectInfo(object):
         result += '    ObjectBegin "{}"\n'.format(self.name)
         #loop parts
         for i in range(len(self.parts)):
-            result += self.materials[i].getEmissionStr()
+            if self.materials[i].isEmissive:
+                print('! WARN !', "Area lights doesn't support instancing!")
+            #result += self.materials[i].getEmissionStr() #Instances does not support emission!
+            if not self.materials[i].mediumName == "":
+                result += "AttributeBegin\n"
+                result += '    MediumInterface "" "{}"\n'.format(self.materials[i].mediumName)
             result += '        NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
-            result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
+            
+            if not self.materials[i].alpha == 1.0:
+                alpha = self.materials[i].alpha
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+                result += '    '+'    '+'"float alpha" [{}]\n'.format(alpha)
+            else:
+                result += '    Shape "plymesh"\n'
+                result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+            #result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
+            if not self.materials[i].mediumName == "":
+                result += "AttributeEnd\n"
         #loop parts
         result += "    ObjectEnd\n"
         result += "AttributeEnd\n"
@@ -163,17 +152,55 @@ class GeometryExporter:
     @staticmethod
     def export_mat_get(mat, export_name):
         materialData = []
+        outInfo = []
+        shapeInfo = {"data":materialData, "medium":None, "emission":None, "alpha":None}
         
         if mat.use_nodes == False:
             GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
             print('! WARN !', "Material: {} has no NodeTree".format(mat.name))
-            return materialData
+            return shapeInfo
             
-        OutputNode = mat.node_tree.nodes.get('Material Output')
+        OutputNode = mat.node_tree.nodes.get('PBRT4 Output')
+        #for n in mat.node_tree.nodes:
+        #    print(n)
+        
         if OutputNode == None:
             GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
-            print('! WARN !', "Material: {} has no Output Node".format(mat.name))
-            return materialData
+            print('! WARN !', "Material: {} has no active Output Node".format(mat.name))
+            return shapeInfo
+
+        #export medium
+        volume_input = OutputNode.inputs[1] #shader volume
+        if volume_input.is_linked:
+            volume_node_link = volume_input.links[0]
+            volume =  volume_node_link.from_node
+            #volume.pbrtv4NodeID = export_name+"_volume"
+            medium_id ="{}::{}".format("preview", 0)
+            volume.setId(mat.name, medium_id)
+            #volume.pbrtv4NodeID = "{}::{}".format(volume.pbrtv4NodeID, object_instance.object.name) #export medium for each part
+            volume.Backprop(outInfo, materialData)
+            #outInfo.append(volume.pbrtv4NodeID)
+            #return outInfo
+            shapeInfo["medium"] = outInfo
+        
+        #export emission
+        emission_input = OutputNode.inputs[2] #shader volume
+        if emission_input.is_linked:
+            em_node_link = emission_input.links[0]
+            em =  em_node_link.from_node
+            emInfo = em.getEmissionInfo(mat.name)
+            shapeInfo["emission"] = emInfo
+            #print(emInfo.getEmissionStr())
+            
+        #export alpha
+        alpha_input = OutputNode.inputs[4] #shader displacement
+        if alpha_input.is_linked:
+            #texture used
+            pass
+        else:
+            alpha = alpha_input.default_value
+            if not alpha == 1.0:
+                shapeInfo["alpha"] = alpha
         
         input = OutputNode.inputs[0] #shader input
         if input.is_linked:
@@ -196,33 +223,34 @@ class GeometryExporter:
                     curNode.pbrtv4NodeID = export_name
                     curNode.Backprop(ExportedNodes, materialData)
             else:
-                print("error: ", mat.name, " not valid pbrtV4 bsdf")
+                print('! WARN !', "Material: ", mat.name, " not valid pbrtV4 bsdf")
                 GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
         else:
-            print("error: ", mat.name, " not valid pbrtV4 bsdf")
+            print('! WARN !', "Material: ", mat.name, " not valid pbrtV4 bsdf")
             GeometryExporter.addDefaultMat(export_name, materialData, [1,0,0])
-        return materialData
+        return shapeInfo
             
     def export_mat(self, object_instance, matid, abs_path):
         outInfo = []
+        shapeInfo = {"medium":None, "emission":None, "alpha":None}
         
         mat = object_instance.object.material_slots[matid].material
-        print ('Exporting material: ', mat.name)
+        #print ('Exporting material: ', mat.name)
         
         if mat.use_nodes == False:
             if not mat.name in self.exported_materials:
                 self.addDefaultMat(mat.name, self.materialData, [1,0,0])
                 self.exported_materials.add(mat.name)
                 print('! WARN !', "Material: {} has no NodeTree".format(mat.name))
-            return outInfo
+            return shapeInfo
         
-        OutputNode = mat.node_tree.nodes.get('Material Output')
+        OutputNode = mat.node_tree.nodes.get('PBRT4 Output')
         if OutputNode == None:
             if not mat.name in self.exported_materials:
                 self.addDefaultMat(mat.name, self.materialData, [1,0,0])
                 self.exported_materials.add(mat.name)
-                print('! WARN !', "Material: {} has no Output Node".format(mat.name))
-            return outInfo
+                print('! WARN !', "Material: {} has no active Output Node".format(mat.name))
+            return shapeInfo
             
         #export medium
         volume_input = OutputNode.inputs[1] #shader volume
@@ -236,9 +264,17 @@ class GeometryExporter:
             volume.Backprop(outInfo, self.materialData)
             #outInfo.append(volume.pbrtv4NodeID)
             #return outInfo
-            
+            shapeInfo["medium"] = outInfo
+        #export emission
+        emission_input = OutputNode.inputs[2] #shader volume
+        if emission_input.is_linked:
+            em_node_link = emission_input.links[0]
+            em =  em_node_link.from_node
+            emInfo = em.getEmissionInfo(mat.name)
+            shapeInfo["emission"] = emInfo
+            #print(emInfo.getEmissionStr())
         #export displacement
-        disp_input = OutputNode.inputs[2] #shader displacement
+        disp_input = OutputNode.inputs[3] #shader displacement
         if disp_input.is_linked:
             disp_node_link = disp_input.links[0]
             disp =  disp_node_link.from_node
@@ -248,6 +284,15 @@ class GeometryExporter:
             #self.dispData.append(util.DispInfo.CreateCopy(dInfo))
             self.dispData.append(dInfo)
             self.use_disp.add(mat.name)#add mat to list, which uses disp
+        #export alpha
+        alpha_input = OutputNode.inputs[4] #shader displacement
+        if alpha_input.is_linked:
+            #texture used
+            pass
+        else:
+            alpha = alpha_input.default_value
+            if not alpha == 1.0:
+                shapeInfo["alpha"] = alpha
                 
         #export material nodetree
         if not mat.name in self.exported_materials:
@@ -258,38 +303,31 @@ class GeometryExporter:
                 if hasattr(node, 'isPbrtv4TreeNode'):
                     node.setId(mat.name, ID)
                     ID+=1
-                    #print(node.name)
-                #if node.name == 'Material Output':
-                    #OutputNode = node
-            #add if
             input = OutputNode.inputs[0] #shader input
-            node_link = input.links[0]
-            curNode =  node_link.from_node
-            if hasattr(curNode, 'isPbrtv4TreeNode'):
-                #set material name instead of generated
-                curNode.pbrtv4NodeID = mat.name
-                curNode.Backprop(ExportedNodes, self.materialData)
+            if input.is_linked:
+                node_link = input.links[0]
+                curNode =  node_link.from_node
+                if hasattr(curNode, 'isPbrtv4TreeNode'):
+                    #set material name instead of generated
+                    curNode.pbrtv4NodeID = mat.name
+                    curNode.Backprop(ExportedNodes, self.materialData)
+                else:
+                    #not bpbrt4 material
+                    #add default instead
+                    print('! WARN !', "Material: {} not valid bpbrt4 bsdf".format(mat.name))
+                    self.addDefaultMat(mat.name, self.materialData, [1,0,0])
             else:
-                #not bpbrt material
-                #add default instead
+                print('! WARN !', "Material: {} has no bsdf linked".format(mat.name))
                 self.addDefaultMat(mat.name, self.materialData, [1,0,0])
-            #self.exported_materials.add(mat.name)
             self.exported_materials.add(mat.name)
         else:
-            print(mat.name, " already exported")
-            #print("Check displacement")
-            #if mat.name in self.use_disp:
-            #    #get disp info
-            #    idx = list(self.use_disp).index(mat.name)
-            #    dInfo = self.matDispData[idx]
-            #    cop = util.DispInfo.CreateCopy(dInfo)
-            #    cop.outfile = abs_path
-            #    self.dispData.append(cop)
-        return outInfo
+            pass
+            #print(mat.name, " already exported")
+        return shapeInfo
                         
     def save_mesh(self, b_mesh, matrix_world, b_name, file_path, mat_nr, info):
         if b_mesh == None:
-            print("Object: {} has no mesh. Skipping.".format(b_name), 'WARN')
+            print('! WARN !', "Object: {} has no mesh. Skipping.".format(b_name))
             return False
         
         b_mesh.calc_normals()
@@ -301,11 +339,18 @@ class GeometryExporter:
             
         loop_tri_count = len(b_mesh.loop_triangles)
         if loop_tri_count == 0:
-            print("Mesh: {} has no faces. Skipping.".format(name), 'WARN')
+            print('! WARN !', "Mesh: {} has no faces. Skipping.".format(name))
             return False
 
 		# collect faces by mat index
         mesh_faces = b_mesh.loop_triangles
+        if mat_nr == -1:
+            print('! WARN !', "Object: {} has no materials. Default added".format(name))
+            mtInfo = util.MatInfo.CreateInfo("default")
+            info.addPart(name, mtInfo)
+            write_ply_mesh(file_path, b_name, b_mesh, mesh_faces) #export whole mesh
+            return False
+            
         cnt = 0
         ffaces_mats=[]
         for f in mesh_faces:
@@ -314,20 +359,16 @@ class GeometryExporter:
             if mi == mat_nr:
                 ffaces_mats.append(f)
                 cnt=cnt+1
-        if mat_nr == -1:
-            print('! WARN !', "Object: {} has no materials. Default added".format(name))
-            mtInfo = MatInfo.CreateInfo("default")
-            info.addPart(name, mtInfo)
-            write_ply_mesh(file_path, b_name, b_mesh, mesh_faces) #export whole mesh
-            return True
-        elif cnt > 0: # Only save complete meshes
+        
+        if cnt > 0: # Only save complete meshes
             #add only parts with data
-            mtInfo = MatInfo.CreateInfo(b_mesh.materials[mat_nr].name, b_mesh.materials[mat_nr].pbrtv4_isEmissive, b_mesh.materials[mat_nr].pbrtv4_emission_color, b_mesh.materials[mat_nr].pbrtv4_emission_power, b_mesh.materials[mat_nr].pbrtv4_emission_preset, b_mesh.materials[mat_nr].pbrtv4_emission_temp)
+            #mtInfo = util.MatInfo.CreateInfo(b_mesh.materials[mat_nr].name, b_mesh.materials[mat_nr].pbrtv4_isEmissive, b_mesh.materials[mat_nr].pbrtv4_emission_color, b_mesh.materials[mat_nr].pbrtv4_emission_power, b_mesh.materials[mat_nr].pbrtv4_emission_preset, b_mesh.materials[mat_nr].pbrtv4_emission_temp)
+            mtInfo = util.MatInfo.CreateInfo(b_mesh.materials[mat_nr].name)
             info.addPart(name, mtInfo)
             write_ply_mesh(file_path, b_name, b_mesh, ffaces_mats)
             return True
         else:
-            print("Material ", b_mesh.materials[mat_nr].name, " has no mesh data assigned! Skipped...")
+            print('! WARN !', "Material ", b_mesh.materials[mat_nr].name, " has no mesh data assigned! Skipped...")
         return False
 
     def export_object_mat(self, object_instance, mat_nr, info, folder):
@@ -346,8 +387,13 @@ class GeometryExporter:
             b_mesh = b_object.to_mesh()
             if self.save_mesh(b_mesh, b_object.matrix_world, b_object.name_full, abs_path, mat_nr, info) and mat_nr >= 0:
                 mat_info = self.export_mat(object_instance, mat_nr, abs_path)
-                if len(mat_info)>0:
-                    info.materials[-1].mediumName = mat_info[0]
+                #print(mat_info)
+                if not mat_info["emission"] == None:
+                    info.materials[-1] = mat_info["emission"]
+                if not mat_info["medium"] == None:
+                    info.materials[-1].mediumName = mat_info["medium"][0]
+                if not mat_info["alpha"] == None:
+                    info.materials[-1].alpha = mat_info["alpha"]
                 #export_material(export_ctx, b_object.data.materials[mat_nr])
             else:
                 pass
@@ -546,6 +592,7 @@ class GeometryExporter:
             
             evaluated_obj = object_instance.object
             object_type = evaluated_obj.type
+            #print(object_type)
             #type: enum in [‘MESH’, ‘CURVE’, ‘SURFACE’, ‘META’, ‘FONT’, ‘ARMATURE’, ‘LATTICE’, ‘EMPTY’, ‘GPENCIL’, ‘CAMERA’, ‘LIGHT’, ‘SPEAKER’, ‘LIGHT_PROBE’], default ‘EMPTY’, (readonly)
             if evaluated_obj.hide_render:
                 print ("Object: {} is hidden for render. Ignoring it.".format(evaluated_obj.name), 'INFO')
@@ -593,10 +640,11 @@ class GeometryExporter:
                 else:
                     #check if object has linked mesh data:
                     #evaluated_obj.data.name //for linked data check
-                    data_name = evaluated_obj.data.name
+                    data_name = evaluated_obj.original.data.name #evaluated_obj.data.name #fix for blender>3 (Seems like a bug in blender. All objects, that have modifiers, returns data name "Mesh") 
+                    #print("DATA NAME:",evaluated_obj.data.name,"OBJECT NAME:",evaluated_obj.name,"ORIGIN NAME:",evaluated_obj.original.name,"ORIGIN DATA NAME:",evaluated_obj.original.data.name)
                     if linked_as_instance and data_name in self.linkedData:
                         #export as instance:
-                        print("Export Linked As Instance Object")
+                        #print("Export Linked As Instance Object")
                         obj_data_id = self.linkedData.index(data_name)
                         obj_data_name = self.linkedName[obj_data_id]
                         Transform = util.matrixtostr(object_instance.matrix_world.transposed())
@@ -633,13 +681,9 @@ class GeometryExporter:
                     print("LIGHT OBJECT", evaluated_obj.data.type, "DOESN'T SUPPURTED")
             elif object_type == 'CAMERA':
                 print ("export object: ", evaluated_obj.name, " skip camera")
-                #export_camera(context, object_instance, b_scene, self.export_ctx)#TODO: investigate multiple scenes and multiple cameras at same time
-            #elif object_type == 'LIGHT':
-                #export_light(object_instance, self.export_ctx)
             else:
-                print ("Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type), 'WARN')
-                #self.export_ctx.log("Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type), 'WARN')
-            
+                print ('! WARN !', "Object: %s of type '%s' is not supported!" % (evaluated_obj.name_full, object_type))
+                
         instStr=''.join(chunk_data)
         for name in self.instancedData:
             #print (infoLst[name])

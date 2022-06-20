@@ -4,6 +4,7 @@ from bl_ui.properties_world import WorldButtonsPanel
 from bl_ui.properties_material import MaterialButtonsPanel
 from bl_ui.properties_object import ObjectButtonsPanel
 from bl_ui.properties_data_camera import CameraButtonsPanel
+from bl_ui.properties_view_layer import ViewLayerButtonsPanel
 from bpy.types import Panel, Menu
 
 class PBRTV4_RENDER_PT_sampling(RenderButtonsPanel, Panel):
@@ -15,6 +16,7 @@ class PBRTV4_RENDER_PT_sampling(RenderButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
         asr_scene_props = context.scene.pbrtv4
+        
         layout.operator("pbrtv4.start_render", text="Start render")
         layout.operator("pbrtv4.start_render_anim", text="Start animation render")
         #layout.operator("pbrtv4.export_for_render", text="Export pbrt4 scene")
@@ -71,6 +73,27 @@ class PBRTV4_RENDER_PT_sampling(RenderButtonsPanel, Panel):
         layout.separator()
         layout.prop(asr_scene_props, "pbrt_linked_as_instance", text="Export linked as instances")
         layout.prop(asr_scene_props, "pbrt_use_realDisp", text="Use real displacement on mesh")
+
+class PBRTV4_RENDER_PT_View(ViewLayerButtonsPanel, Panel):
+    COMPAT_ENGINES = {"PBRTV4"}
+    bl_label = "Post Process"
+    #bl_options = {'DEFAULT_CLOSED'}
+    bl_order = 2
+
+    def draw(self, context):
+        layout = self.layout
+        asr_scene_props = context.scene.pbrtv4
+        #bloom
+        layout.prop(asr_scene_props, "pbrt_ACES_toFilm", text="Convert ACES to Film")
+        layout.prop(asr_scene_props, "pbrt_apply_bloom", text="Apply bloom")
+        if asr_scene_props.pbrt_apply_bloom:
+            col = layout.column(align=True)
+            col.label(text="Bloom parameters:")
+            col.prop(asr_scene_props, "pbrt_bloom_lvl", text="level")
+            col.prop(asr_scene_props, "pbrt_bloom_scale", text="scale")
+            col.prop(asr_scene_props, "pbrt_bloom_width", text="width")
+        #bloom
+        layout.operator("pbrtv4.post_process", text="Post process")
 
 class PBRTV4_RENDER_PT_Film(RenderButtonsPanel, Panel):
     COMPAT_ENGINES = {"PBRTV4"}
@@ -213,8 +236,10 @@ class PBRTV4_PT_MATERIAL_previev(MaterialButtonsPanel, Panel):
         #image = bpy.ops.image.open(filepath="")
         #preview_mat
         layout.template_preview(context.material, show_buttons=False)
+        layout.prop(context.scene.pbrtv4, "pbrt_prev_obj", text="object")
         layout.prop(context.scene.pbrtv4, "pbrt_prev_fov", text="Preview FOV")
         layout.prop(context.scene.pbrtv4, "pbrt_prev_samples", text="Preview Samples")
+        layout.operator("pbrtv4.start_preview_render", text="Update preview")
         
 class PBRTV4_PT_OBJECT_prop(ObjectButtonsPanel, Panel):
     COMPAT_ENGINES = {"PBRTV4"}
@@ -338,13 +363,14 @@ class PBRTV4_LIGHT_PT_common(bpy.types.Panel):
 def register():
     bpy.utils.register_class(PBRTV4_RENDER_PT_sampling)
     bpy.utils.register_class(PBRTV4_MATERIAL_PT_slots)
-    bpy.utils.register_class(PBRTV4_MATERIAL_PT_emissions)
+    #bpy.utils.register_class(PBRTV4_MATERIAL_PT_emissions)
     bpy.utils.register_class(PBRTV4_PT_MATERIAL_previev)
     bpy.utils.register_class(PBRTV4_RENDER_PT_Film)
     bpy.utils.register_class(PBRTV4_WORLD_PT_common)
     bpy.utils.register_class(PBRTV4_PT_OBJECT_prop)
     bpy.utils.register_class(PBRTV4_CAMERA_PT_common)
     bpy.utils.register_class(PBRTV4_LIGHT_PT_common)
+    bpy.utils.register_class(PBRTV4_RENDER_PT_View)
     
 def unregister():
     bpy.utils.unregister_class(PBRTV4_LIGHT_PT_common)
@@ -352,7 +378,8 @@ def unregister():
     bpy.utils.unregister_class(PBRTV4_PT_OBJECT_prop)
     bpy.utils.unregister_class(PBRTV4_RENDER_PT_sampling)
     bpy.utils.unregister_class(PBRTV4_MATERIAL_PT_slots)
-    bpy.utils.unregister_class(PBRTV4_MATERIAL_PT_emissions)
+    #bpy.utils.unregister_class(PBRTV4_MATERIAL_PT_emissions)
     bpy.utils.unregister_class(PBRTV4_PT_MATERIAL_previev)
     bpy.utils.unregister_class(PBRTV4_RENDER_PT_Film)
     bpy.utils.unregister_class(PBRTV4_WORLD_PT_common)
+    bpy.utils.unregister_class(PBRTV4_RENDER_PT_View)

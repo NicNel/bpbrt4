@@ -1,3 +1,21 @@
+EmissionPreset = [
+                 ("stdillum-A", "stdillum-A", "stdillum-A"),
+                 ("stdillum-D50", "stdillum-D50", "stdillum-D50"),
+                 ("stdillum-D65", "stdillum-D65", "stdillum-D65"),
+                 ("stdillum-F1", "stdillum-F1", "stdillum-F1"),
+                 ("stdillum-F2", "stdillum-F2", "stdillum-F2"),
+                 ("stdillum-F3", "stdillum-F3", "stdillum-F3"),
+                 ("stdillum-F4", "stdillum-F4", "stdillum-F4"),
+                 ("stdillum-F5", "stdillum-F5", "stdillum-F5"),
+                 ("stdillum-F6", "stdillum-F6", "stdillum-F6"),
+                 ("stdillum-F7", "stdillum-F7", "stdillum-F7"),
+                 ("stdillum-F8", "stdillum-F8", "stdillum-F8"),
+                 ("stdillum-F9", "stdillum-F9", "stdillum-F9"),
+                 ("stdillum-F10", "stdillum-F10", "stdillum-F10"),
+                 ("stdillum-F11", "stdillum-F11", "stdillum-F11"),
+                 ("stdillum-F12", "stdillum-F12", "stdillum-F12"),
+                 ("illum-acesD60", "illum-acesD60", "illum-acesD60")
+                 ]
 GlassPreset = [
               ("glass-BK7", "Glass BK7", "Glass BK7"),
               ("glass-BAF10", "Glass BAF10", "Glass BAF10"),

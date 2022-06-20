@@ -50,6 +50,9 @@ node_categories = [
         #NodeItem("pbrtv4Plastic"),
         NodeItem("pbrtv4Conductor")
         ]),
+    PBRTV4NodeCategory("PBRTV4_OUTPUT", "PBRTV4 Output", items=[
+        NodeItem("pbrtv4Output")
+        ]),
     PBRTV4NodeCategory("PBRTV4_MEDIUM", "PBRTV4 Mediums", items=[
         NodeItem("pbrtv4Uniformgrid"),
         #NodeItem("pbrtv4Heterogeneous"),
@@ -57,6 +60,7 @@ node_categories = [
         NodeItem("pbrtv4CloudVolume")
         ]),
     PBRTV4NodeCategory("PBRTV4_TEXTURES", "PBRTV4 Textures", items=[
+        NodeItem("pbrtv4NodeConstant"),
         NodeItem("pbrtv4NodeMix"),
         #NodeItem("pbrtv4NodeHSV"),
         NodeItem("pbrtv4NodeScale"),
@@ -64,10 +68,15 @@ node_categories = [
         #NodeItem("pbrtv4NodeTexture2d"),
         NodeItem("pbrtv4NodeImageTexture2d")
         ]),
-    PBRTV4NodeCategory("PBRTV4_UTILS", "PBRTV4 Utils", items=[
-        NodeItem("pbrtv4NodeConstant"),
-        NodeItem("PBRTV4Mapping2d"),
+    PBRTV4NodeCategory("PBRTV4_SHAPE_PAR", "PBRTV4 Shape parameters", items=[
+        NodeItem("pbrtv4AreaEmitter"),
         NodeItem("pbrtv4Displacement")
+        ]),
+    PBRTV4NodeCategory("PBRTV4_UTILS", "PBRTV4 Utils", items=[
+        #NodeItem("pbrtv4NodeConstant"),
+        NodeItem("PBRTV4Mapping2d"),
+        #NodeItem("pbrtv4Displacement"),
+        #NodeItem("pbrtv4AreaEmitter")
         ]),
     ]
 
@@ -139,7 +148,7 @@ class PBRTV4TreeNode(Node):
 class pbrtv4NoneMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4None'
-    bl_label = 'none'
+    bl_label = 'interface'
     bl_icon = 'MATERIAL'
 
     def init(self, context):
@@ -162,6 +171,7 @@ class pbrtv4NoneMaterial(PBRTV4TreeNode):
         return self
     #"float amount" [ 0.005 ]
     #"string materials" ["default" "default"]
+    
 class pbrtv4MixMaterial(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Mix'
@@ -1815,7 +1825,8 @@ class pbrtv4NodeMapping2d(PBRTV4TreeNode):
     #"float udelta" [ 0 ]
     #"float vdelta" [ 0 ]
     def to_string(self, list, data):
-        res = '    "string wrap" [ "repeat" ]\n'
+        res = ""
+    #    res = '    "string wrap" [ "repeat" ]\n'
         res +='    "string mapping" [ "{}" ]\n'.format(self.MappingType)
         
         res +='    "float uscale" [ {} ]\n'.format(self.UValue)
@@ -2204,7 +2215,7 @@ class pbrtv4CloudVolume(PBRTV4TreeNode):
 class pbrtv4Displacement(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4Displacement'
-    bl_label = 'displacement'
+    bl_label = 'Displacement'
     bl_icon = 'MOD_DISPLACE'
     
     Scale : bpy.props.FloatProperty(default=1.00)
@@ -2245,13 +2256,171 @@ class pbrtv4Displacement(PBRTV4TreeNode):
         dInfo = util.DispInfo.CreateInfo("dispParam", "", imagePath, edge_length, scale, uvscale)
         return dInfo
         
+class pbrtv4AreaEmitter(PBRTV4TreeNode):
+    '''A custom node'''
+    bl_idname = 'pbrtv4AreaEmitter'
+    bl_label = 'AreaEmitter'
+    bl_icon = 'MATERIAL'
+    
+    Power : bpy.props.FloatProperty(default=1.00)
+    Temperature : bpy.props.FloatProperty(default=6500.00)
+    Twosided : bpy.props.BoolProperty(name="Twosided", default=False, description="is two sided")
+    
+    def updatePreset(self,context):
+        Color = self.inputs[0]
+        if self.Emission_Preset == "color":
+            Color.hide = False
+        else:
+            Color.hide = True
+        
+    Emission_Preset: bpy.props.EnumProperty(name="Emission_Preset",
+                                            description="Emission spectrum",
+                                            items=presets.EmissionPreset+[("blackbody", "blackbody", "Blackbody"),
+                                                                          ("color", "color", "Color")],
+                                            default='stdillum-D65', update = updatePreset)
+    
+    def init(self, context):
+        self.outputs.new('NodeSocketShader', "Emission")
+        Color_node = self.inputs.new('NodeSocketColor', "Color")
+        Color_node.default_value = [1,1,1,1]
+        Color_node.hide = True
+        
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "Twosided",text = 'two sided')
+        layout.prop(self, "Emission_Preset",text = 'Type')
+        layout.prop(self, "Power",text = 'Power')
+        if self.Emission_Preset == "blackbody":
+            layout.prop(self, "Temperature",text = 'Temperature')
+        
+    def draw_label(self):
+        return self.bl_label
+    
+    #return str to add blocks from connected nodes to current and data to write to file
+    def to_string(self, list, data):
+        return self
+    
+    def getEmissionInfo(self, mat_name):
+        image = self.inputs[0]
+        
+        power = self.Power
+        temp = self.Temperature
+        twosided = self.Twosided
+        #self.Emission_Preset
+        imagePath = ""
+        color = [0,0,0]
+        #get connected image
+        if (image.is_linked):
+            node_link = image.links[0]
+            curNode =  node_link.from_node
+            imagePath = util.switchpath(util.realpath(curNode.image.filepath))
+        else:
+            color = image.default_value
+        #def CreateInfo(name, outfile, image, edge_length, scale, uvscale):
+        eInfo = util.MatInfo.CreateInfo(mat_name, True, color, power, self.Emission_Preset, temp)
+        return eInfo
+        
+    def getEmissionStr(self):
+        color = self.inputs[0]
+        result = '    '+'AreaLightSource "diffuse"\n'
+        if self.Emission_Preset == 'color':
+            if (image.is_linked):
+                node_link = image.links[0]
+                curNode =  node_link.from_node
+                imagePath = util.switchpath(util.realpath(curNode.image.filepath))
+                result += '    '+'    '+'"string filename" "{}"\n'.format(imagePath)
+            else:
+                c = color.default_value
+                result += '    '+'    '+'"rgb L" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+        elif self.Emission_Preset == 'blackbody':
+            result += "    "+"    "+'"blackbody L" [{}]\n'.format(self.Temperature)
+        else:
+            result += '    '+'    '+'"spectrum L" "{}"\n'.format(self.Emission_Preset)
+        result += "    "+"    "+'"float scale" [{}]\n'.format(self.Power)
+        return result
+
+class pbrtv4Output(PBRTV4TreeNode):
+    '''A custom node'''
+    bl_idname = 'pbrtv4Output'
+    bl_label = 'PBRT4 Output'
+    bl_icon = 'MATERIAL'
+    
+    def update_active(self, context):
+        #color = [0.5,0.5,0.5]
+        theme = util.get_theme(bpy.context)
+        color = theme.node_editor.node_backdrop[:3]
+        if self.is_active_output:
+            self.disable_others(self)
+            self.name = 'PBRT4 Output'
+            self.color = [color[0]*0.5, color[1]*0.7, color[2] * 1.0]
+        else:
+            self.name = 'UnusedOutput'
+            self.color = [color[0] * 0.5, color[1]*0.5, color[2]*0.5]
+            
+    is_active_output: bpy.props.BoolProperty(name="is active output", default=True, description="is active output", update=update_active)
+    
+    def init(self, context):
+        self.use_custom_color = True
+        self.is_active_output = True
+        #0
+        BSDF_node = self.inputs.new('NodeSocketShader', "Bsdf")
+        #1
+        Medium_node = self.inputs.new('NodeSocketShader', "Medium")
+        #2
+        Emission_node = self.inputs.new('NodeSocketShader', "Emission")
+        #3
+        Disp_node = self.inputs.new('NodeSocketVector', "Displacement")
+        Disp_node.hide_value = True
+        #4
+        Alpha_node = self.inputs.new('NodeSocketFloatUnsigned', "Alpha")
+        Alpha_node.default_value = 1.0
+        
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "is_active_output")
+    
+    def copy(self, orig_node):
+        if self.is_active_output:
+            self.is_active_output = True
+    
+    def free(self):
+        if self.is_active_output:
+            self.set_first_match()
+            
+    def draw_label(self):
+        return self.bl_label
+        #for debug:
+        #return self.name
+    
+    def set_first_match(self):
+        node_tree = self.id_data
+        if node_tree is None:
+            return
+        for node in util.get_output_nodes(node_tree, self.bl_idname):
+            node.is_active_output = True
+            break
+    
+    def disable_others(self, selected):
+        node_tree = self.id_data
+        if node_tree is None:
+            return
+        for node in util.get_output_nodes(node_tree, self.bl_idname):
+            if not node == selected:
+                node.is_active_output = False
+                
+    def to_string(self, list, data):
+        name = self.pbrtv4NodeID
+        return self
+        
 def register():
     #add internal Id property for Node
     bpy.types.Node.pbrtv4NodeID = bpy.props.StringProperty(name="NodeID", default = "NodeID")
+    bpy.utils.register_class(pbrtv4Output)
     
     bpy.utils.register_class(pbrtv4PlasticMaterial)
     bpy.utils.register_class(pbrtv4UberMaterial)
     bpy.utils.register_class(pbrtv4Displacement)
+    
+    bpy.utils.register_class(pbrtv4AreaEmitter)
+    
     bpy.utils.register_class(pbrtv4NodeHSV)
     bpy.utils.register_class(pbrtv4SubsurfaceMaterial)
     bpy.utils.register_class(pbrtv4NodeMix)
@@ -2281,9 +2450,13 @@ def register():
     nodeitems_utils.register_node_categories("PBRTV4_NODES", node_categories)
 
 def unregister():
+    bpy.utils.unregister_class(pbrtv4Output)
     bpy.utils.unregister_class(pbrtv4PlasticMaterial)
     bpy.utils.unregister_class(pbrtv4UberMaterial)
     bpy.utils.unregister_class(pbrtv4Displacement)
+    
+    bpy.utils.unregister_class(pbrtv4AreaEmitter)
+    
     bpy.utils.unregister_class(pbrtv4NodeHSV)
     bpy.utils.unregister_class(pbrtv4SubsurfaceMaterial)
     bpy.utils.unregister_class(pbrtv4NodeMix)
