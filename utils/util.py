@@ -27,7 +27,8 @@ class MatInfo(object):
         self.isEmissive = False #dict name, isEm, color
         self.emColor = []
         self.scale = 1.0;
-        self.mediumName = ""
+        self.insideMediumName = ""
+        self.outsideMediumName = ""
         self.temperature = 6500
         self.alpha = 1.0
         

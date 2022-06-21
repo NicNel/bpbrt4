@@ -50,9 +50,9 @@ class ObjectInfo(object):
         #loop parts
         for i in range(len(self.parts)):
             result += self.materials[i].getEmissionStr()
-            if not self.materials[i].mediumName == "":
+            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
                 result += "AttributeBegin\n"
-                result += '    MediumInterface "" "{}"\n'.format(self.materials[i].mediumName)
+                result += '    MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
             result += '    NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
             
@@ -64,7 +64,7 @@ class ObjectInfo(object):
             else:
                 result += '    Shape "plymesh"\n'
                 result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
-            if not self.materials[i].mediumName == "":
+            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
                 result += "AttributeEnd\n"
         #loop parts
         result += "AttributeEnd\n"
@@ -78,9 +78,9 @@ class ObjectInfo(object):
             if self.materials[i].isEmissive:
                 print('! WARN !', "Area lights doesn't support instancing!")
             #result += self.materials[i].getEmissionStr() #Instances does not support emission!
-            if not self.materials[i].mediumName == "":
+            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
                 result += "AttributeBegin\n"
-                result += '    MediumInterface "" "{}"\n'.format(self.materials[i].mediumName)
+                result += '    MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
             result += '        NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
             
@@ -93,7 +93,7 @@ class ObjectInfo(object):
                 result += '    Shape "plymesh"\n'
                 result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
             #result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
-            if not self.materials[i].mediumName == "":
+            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
                 result += "AttributeEnd\n"
         #loop parts
         result += "    ObjectEnd\n"
@@ -152,7 +152,6 @@ class GeometryExporter:
     @staticmethod
     def export_mat_get(mat, export_name):
         materialData = []
-        outInfo = []
         shapeInfo = {"data":materialData, "medium":None, "emission":None, "alpha":None}
         
         if mat.use_nodes == False:
@@ -170,9 +169,11 @@ class GeometryExporter:
             return shapeInfo
 
         #export medium
-        volume_input = OutputNode.inputs[1] #shader volume
-        if volume_input.is_linked:
-            volume_node_link = volume_input.links[0]
+        volumes = {"inside":"", "outside":""}
+        outInfo = []
+        inner_volume_input = OutputNode.inputs[1] #shader volume
+        if inner_volume_input.is_linked:
+            volume_node_link = inner_volume_input.links[0]
             volume =  volume_node_link.from_node
             #volume.pbrtv4NodeID = export_name+"_volume"
             medium_id ="{}::{}".format("preview", 0)
@@ -181,10 +182,27 @@ class GeometryExporter:
             volume.Backprop(outInfo, materialData)
             #outInfo.append(volume.pbrtv4NodeID)
             #return outInfo
-            shapeInfo["medium"] = outInfo
+            volumes["inside"] = outInfo[0]
+        outInfo = []
+        outer_volume_input = OutputNode.inputs[2] #shader volume
+        if outer_volume_input.is_linked:
+            volume_node_link = outer_volume_input.links[0]
+            volume =  volume_node_link.from_node
+            #volume.pbrtv4NodeID = export_name+"_volume"
+            medium_id ="{}::{}".format("preview", 1)
+            volume.setId(mat.name, medium_id)
+            #volume.pbrtv4NodeID = "{}::{}".format(volume.pbrtv4NodeID, object_instance.object.name) #export medium for each part
+            volume.Backprop(outInfo, materialData)
+            #outInfo.append(volume.pbrtv4NodeID)
+            #return outInfo
+            #volumes += outInfo
+            volumes["outside"] = outInfo[0]
+        if not volumes["inside"]=="" or not volumes["outside"]=="":
+            shapeInfo["medium"] = volumes
+            print(volumes)
         
         #export emission
-        emission_input = OutputNode.inputs[2] #shader volume
+        emission_input = OutputNode.inputs[3] #shader volume
         if emission_input.is_linked:
             em_node_link = emission_input.links[0]
             em =  em_node_link.from_node
@@ -193,7 +211,7 @@ class GeometryExporter:
             #print(emInfo.getEmissionStr())
             
         #export alpha
-        alpha_input = OutputNode.inputs[4] #shader displacement
+        alpha_input = OutputNode.inputs[5] #shader displacement
         if alpha_input.is_linked:
             #texture used
             pass
@@ -231,7 +249,6 @@ class GeometryExporter:
         return shapeInfo
             
     def export_mat(self, object_instance, matid, abs_path):
-        outInfo = []
         shapeInfo = {"medium":None, "emission":None, "alpha":None}
         
         mat = object_instance.object.material_slots[matid].material
@@ -251,22 +268,45 @@ class GeometryExporter:
                 self.exported_materials.add(mat.name)
                 print('! WARN !', "Material: {} has no active Output Node".format(mat.name))
             return shapeInfo
-            
+        
         #export medium
-        volume_input = OutputNode.inputs[1] #shader volume
-        if volume_input.is_linked:
-            volume_node_link = volume_input.links[0]
+        volumes = {"inside":"", "outside":""}
+        outInfo = []        
+        #export medium
+        inner_volume_input = OutputNode.inputs[1] #shader volume
+        if inner_volume_input.is_linked:
+            volume_node_link = inner_volume_input.links[0]
             volume =  volume_node_link.from_node
             #volume.pbrtv4NodeID = export_name+"_volume"
-            medium_id ="{}::{}".format(object_instance.object.name, matid)
+            medium_id ="{}::{}::{}".format(object_instance.object.name, matid, 0)
             volume.setId(mat.name, medium_id)
             #volume.pbrtv4NodeID = "{}::{}".format(volume.pbrtv4NodeID, object_instance.object.name) #export medium for each part
             volume.Backprop(outInfo, self.materialData)
             #outInfo.append(volume.pbrtv4NodeID)
             #return outInfo
-            shapeInfo["medium"] = outInfo
+            #shapeInfo["medium"] = outInfo
+            volumes["inside"] = outInfo[0]
+            
+        outInfo = []
+        outer_volume_input = OutputNode.inputs[2] #shader volume
+        if outer_volume_input.is_linked:
+            volume_node_link = outer_volume_input.links[0]
+            volume =  volume_node_link.from_node
+            #volume.pbrtv4NodeID = export_name+"_volume"
+            medium_id ="{}::{}::{}".format(object_instance.object.name, matid, 1)
+            volume.setId(mat.name, medium_id)
+            #volume.pbrtv4NodeID = "{}::{}".format(volume.pbrtv4NodeID, object_instance.object.name) #export medium for each part
+            volume.Backprop(outInfo, self.materialData)
+            #outInfo.append(volume.pbrtv4NodeID)
+            #return outInfo
+            #shapeInfo["medium"] = outInfo
+            volumes["outside"] = outInfo[0]
+        if not volumes["inside"]=="" or not volumes["outside"]=="":
+            shapeInfo["medium"] = volumes
+            print(volumes)
+            
         #export emission
-        emission_input = OutputNode.inputs[2] #shader volume
+        emission_input = OutputNode.inputs[3] #shader volume
         if emission_input.is_linked:
             em_node_link = emission_input.links[0]
             em =  em_node_link.from_node
@@ -274,7 +314,7 @@ class GeometryExporter:
             shapeInfo["emission"] = emInfo
             #print(emInfo.getEmissionStr())
         #export displacement
-        disp_input = OutputNode.inputs[3] #shader displacement
+        disp_input = OutputNode.inputs[4] #shader displacement
         if disp_input.is_linked:
             disp_node_link = disp_input.links[0]
             disp =  disp_node_link.from_node
@@ -284,8 +324,9 @@ class GeometryExporter:
             #self.dispData.append(util.DispInfo.CreateCopy(dInfo))
             self.dispData.append(dInfo)
             self.use_disp.add(mat.name)#add mat to list, which uses disp
+            
         #export alpha
-        alpha_input = OutputNode.inputs[4] #shader displacement
+        alpha_input = OutputNode.inputs[5] #shader displacement
         if alpha_input.is_linked:
             #texture used
             pass
@@ -391,7 +432,8 @@ class GeometryExporter:
                 if not mat_info["emission"] == None:
                     info.materials[-1] = mat_info["emission"]
                 if not mat_info["medium"] == None:
-                    info.materials[-1].mediumName = mat_info["medium"][0]
+                    info.materials[-1].insideMediumName = mat_info["medium"]["inside"]
+                    info.materials[-1].outsideMediumName = mat_info["medium"]["outside"]
                 if not mat_info["alpha"] == None:
                     info.materials[-1].alpha = mat_info["alpha"]
                 #export_material(export_ctx, b_object.data.materials[mat_nr])
