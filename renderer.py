@@ -266,8 +266,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 if not info["emission"] == None:
                     f.write(info["emission"].getEmissionStr())
                 if not info["medium"] == None:
-                    name = info["medium"][0]
-                    str = '    MediumInterface "" "{}"\n'.format(name)
+                    insideMediumName = info["medium"]["inside"]
+                    outsideMediumName = info["medium"]["outside"]
+                    str = '    MediumInterface "{}" "{}"\n'.format(insideMediumName, outsideMediumName)
                     f.write(str)
                 
                 obj_name = "preview_"+bpy.context.scene.pbrtv4.pbrt_prev_obj

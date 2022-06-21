@@ -2364,13 +2364,15 @@ class pbrtv4Output(PBRTV4TreeNode):
         #0
         BSDF_node = self.inputs.new('NodeSocketShader', "Bsdf")
         #1
-        Medium_node = self.inputs.new('NodeSocketShader', "Medium")
+        Inside_Medium_node = self.inputs.new('NodeSocketShader', "Inside medium")
         #2
-        Emission_node = self.inputs.new('NodeSocketShader', "Emission")
+        Outside_Medium_node = self.inputs.new('NodeSocketShader', "Outside medium")
         #3
+        Emission_node = self.inputs.new('NodeSocketShader', "Emission")
+        #4
         Disp_node = self.inputs.new('NodeSocketVector', "Displacement")
         Disp_node.hide_value = True
-        #4
+        #5
         Alpha_node = self.inputs.new('NodeSocketFloatUnsigned', "Alpha")
         Alpha_node.default_value = 1.0
         
