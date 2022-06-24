@@ -197,7 +197,7 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
                                              subtype='DIR_PATH')
     pbrt_run_denoiser: bpy.props.BoolProperty(
         name="pbrt_run_denoiser",
-        default=False
+        default=True
     )
     pbrt_prev_fov: bpy.props.FloatProperty(name="pbrt_prev_fov",
                                                description="Preview camera fov",

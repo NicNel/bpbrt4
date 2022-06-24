@@ -30,7 +30,7 @@ class MatInfo(object):
         self.insideMediumName = ""
         self.outsideMediumName = ""
         self.temperature = 6500
-        self.alpha = 1.0
+        self.alpha = None
         
     def getEmissionStr(self):
         if self.isEmissive:

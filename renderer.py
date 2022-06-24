@@ -276,7 +276,10 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 shape = '    '+'Shape "plymesh"\n'
                 shape += '    '+'    '+'"string filename" "{}"\n'.format(obj)
                 if not info["alpha"] == None:
-                    shape += '    '+'    '+'"float alpha" [{}]\n'.format(info["alpha"])
+                    if not info["alpha"]["texture"] == "":
+                        shape += '    '+'    '+'"texture alpha" "{}"\n'.format(info["alpha"]["texture"])
+                    else:
+                        shape += '    '+'    '+'"float alpha" [{}]\n'.format(info["alpha"]["value"])
                 f.write(shape)
                 f.close()
                 
