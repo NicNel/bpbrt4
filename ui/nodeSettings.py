@@ -62,6 +62,8 @@ node_categories = [
     PBRTV4NodeCategory("PBRTV4_TEXTURES", "PBRTV4 Textures", items=[
         NodeItem("pbrtv4NodeConstant"),
         NodeItem("pbrtv4NodeMix"),
+        NodeItem("pbrtv4NodeDMix"),
+        NodeItem("pbrtv4NodeMarble"),
         #NodeItem("pbrtv4NodeHSV"),
         NodeItem("pbrtv4NodeScale"),
         NodeItem("pbrtv4NodeCheckerboard"),
@@ -968,7 +970,6 @@ class pbrtv4CoateddiffuseMaterial(PBRTV4TreeNode):
         
         #g = self.inputs[4]
         #albedo = self.inputs[5]
-        
         name = self.pbrtv4NodeID
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
@@ -1453,7 +1454,7 @@ class pbrtv4NodeTexture2d(PBRTV4TreeNode):
 class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeImageTexture2d'
-    bl_label = 'pbrtv4 image'
+    bl_label = 'Image'
     bl_icon = 'TEXTURE'
     
     def update_image(self, context):
@@ -1471,20 +1472,32 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
                                           items=[('spectrum', "spectrum", "spectrum texture"),
                                                  ('float', "float", "float texture")],
                                           default='spectrum', update=update_type)
+                                          
     ScaleValue : bpy.props.FloatProperty(default=1.0)
     show_thumbnail: bpy.props.BoolProperty(name="", default=True, description="Show thumbnail")
     
     isNormal: bpy.props.BoolProperty(name="", default=False, description="Is Normal")
     
-    Convert: bpy.props.BoolProperty(name="Convert", default=False, description="Convert to sRGB")
+    #Convert: bpy.props.BoolProperty(name="Convert", default=False, description="Convert to sRGB")
     GammaValue : bpy.props.FloatProperty(default=1.0)
     
     Invert: bpy.props.BoolProperty(name="", default=False, description="Invert")
     EncodingType: bpy.props.EnumProperty(name="EncodingType",
                                           description="Texture encoding",
                                           items=[('sRGB', "sRGB", "sRGB texture"),
-                                                 ('linear', "linear", "linear texture")],
+                                                 ('linear', "linear", "linear texture"),
+                                                 ('gamma', "gamma", "gamma")
+                                                 ],
                                           default='sRGB', update=update_type)
+                                          
+    WrapType: bpy.props.EnumProperty(name="WrapType",
+                                          description="Wrap",
+                                          items=[('repeat', "repeat", "repeat"),
+                                                 ('black', "black", "black"),
+                                                 ('clamp', "clamp", "clamp")
+                                                 ],
+                                          default='repeat')
+                                          
     FilterType: bpy.props.EnumProperty(name="FilterType",
                                           description="Texture filter type",
                                           items=[('ewa', "ewa", "ewa filter"),
@@ -1508,14 +1521,15 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
             layout.template_ID(self, "image", open="image.open")
         layout.prop(self, "TextureType",text = 'Texture type')
         layout.prop(self, "ScaleValue",text = 'Scale')
-        
         layout.prop(self, "Invert",text = 'Invert')
-        layout.prop(self, "isNormal", text = 'Is Normal')
-        layout.prop(self, "FilterType", text = 'Filter type')
+        layout.prop(self, "WrapType", text = 'Wrap')
         layout.prop(self, "EncodingType", text = 'Encoding type')
+        if self.EncodingType=="gamma":
+            layout.prop(self, "GammaValue", text = 'gamma')
+        layout.prop(self, "FilterType", text = 'Filter type')
+        layout.prop(self, "isNormal", text = 'Is Normal')
+        #layout.prop(self, "Convert", text = 'convert to sRGB')
         
-        layout.prop(self, "Convert", text = 'convert to sRGB')
-        layout.prop(self, "GammaValue", text = 'gamma')
         
     def draw_label(self):
         return self.bl_label
@@ -1548,10 +1562,11 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
         res +='    "string filename" [ "{}" ]\n'.format(util.switchpath(util.realpath(self.image.filepath)))
         res +='    "float scale" [ {} ]\n'.format(self.ScaleValue)
         #2.return texture name parameter as res
+        res +='    "string wrap" [ "{}" ]\n'.format(self.WrapType)
+        
         uv = self.inputs[0]
         if not(uv.is_linked):
             #add default mapping
-            res +='    "string wrap" [ "repeat" ]\n'
             res +='    "string mapping" [ "{}" ]\n'.format("uv")
             res +='    "float uscale" [ {} ]\n'.format("1")
             res +='    "float vscale" [ {} ]\n'.format("1")
@@ -1561,14 +1576,14 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
             node_link = uv.links[0]
             curNode =  node_link.from_node
             res+=curNode.to_string(list, data)
-        inv='false'
-        if self.Invert:
-            inv='true'
-        res+='  "bool invert" {}\n'.format(inv)
+            
+        res+='    "bool invert" {}\n'.format("true" if self.Invert else "false")
+        res+='    "string filter" "{}"\n'.format(self.FilterType)
         
-        res+='  "string filter" "{}"\n'.format(self.FilterType)
-        res+='  "string encoding" "{}"\n'.format(self.EncodingType)
-        
+        if self.EncodingType == "gamma":
+            res+='    "string encoding" "gamma {}"\n'.format(self.GammaValue)
+        else:
+            res+='    "string encoding" "{}"\n'.format(self.EncodingType)
         #if self.TextureType == "spectrum":
         #    conv = 'true' if self.Convert else 'false'
         #    res+='  "bool convert" {}\n'.format(conv)
@@ -1581,13 +1596,17 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
 class pbrtv4NodeCheckerboard(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeCheckerboard'
-    bl_label = 'Pbrtv4 Checkerboard'
+    bl_label = 'Checkerboard'
     bl_icon = 'TEXTURE'
     def update_type(self, context):
         if self.TextureType == "spectrum":
             self.outputs[0].type = "RGBA"
+            self.inputs[0].type = "RGBA"
+            self.inputs[1].type = "RGBA"
         else:
             self.outputs[0].type = "VALUE"
+            self.inputs[0].type = "VALUE"
+            self.inputs[1].type = "VALUE"
     TextureType: bpy.props.EnumProperty(name="TextureType",
                                           description="Texture type",
                                           items=[('spectrum', "spectrum", "spectrum texture"),
@@ -1633,7 +1652,10 @@ class pbrtv4NodeCheckerboard(PBRTV4TreeNode):
         #tex1
         if not(tex1.is_linked):
             c = tex1.default_value
-            res+='  "rgb tex1" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex1" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex1" [ {} ]\n'.format(c)
         else:
             node_link = tex1.links[0]
             curNode =  node_link.from_node
@@ -1643,7 +1665,10 @@ class pbrtv4NodeCheckerboard(PBRTV4TreeNode):
         #tex2
         if not(tex2.is_linked):
             c = tex2.default_value
-            res+='  "rgb tex2" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex2" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex2" [ {} ]\n'.format(c)
         else:
             node_link = tex2.links[0]
             curNode =  node_link.from_node
@@ -1663,13 +1688,15 @@ class pbrtv4NodeCheckerboard(PBRTV4TreeNode):
 class pbrtv4NodeScale(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeScale'
-    bl_label = 'Pbrtv4 Scale'
+    bl_label = 'Scale'
     bl_icon = 'TEXTURE'
     def update_type(self, context):
         if self.TextureType == "spectrum":
             self.outputs[0].type = "RGBA"
+            self.inputs[0].type = "RGBA"
         else:
             self.outputs[0].type = "VALUE"
+            self.inputs[0].type = "VALUE"
     
     TextureType: bpy.props.EnumProperty(name="TextureType",
                                           description="Texture type",
@@ -1717,15 +1744,21 @@ class pbrtv4NodeScale(PBRTV4TreeNode):
 class pbrtv4NodeConstant(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeConstant'
-    bl_label = 'Pbrtv4 Constant'
+    bl_label = 'Constant'
     bl_icon = 'TEXTURE'
+    
+    def update_type(self, context):
+        if self.ConstantType == "color":
+            self.outputs[0].type = "RGBA"
+        else:
+            self.outputs[0].type = "VALUE"
     
     ConstantType: bpy.props.EnumProperty(name="ConstantType",
                                           description="Texture type",
                                           items=[('color', "color", "color"),
                                                  ("blackbody", "blackbody", "Blackbody"),
                                                  ('value', "value", "value")],
-                                          default='color')
+                                          default='color', update=update_type)
     
     Value : bpy.props.FloatProperty(default=0.8)
     Color : bpy.props.FloatVectorProperty(name="Color", description="color",default=(0.8, 0.8, 0.8, 1.0), min=0, max=1, subtype='COLOR', size=4)
@@ -1840,14 +1873,18 @@ class pbrtv4NodeMapping2d(PBRTV4TreeNode):
 class pbrtv4NodeMix(PBRTV4TreeNode):
     '''A custom node'''
     bl_idname = 'pbrtv4NodeMix'
-    bl_label = 'Pbrtv4 Mix'
+    bl_label = 'Mix'
     bl_icon = 'TEXTURE'
     
     def update_type(self, context):
         if self.TextureType == "spectrum":
             self.outputs[0].type = "RGBA"
+            self.inputs[1].type = "RGBA"
+            self.inputs[2].type = "RGBA"
         else:
             self.outputs[0].type = "VALUE"
+            self.inputs[1].type = "VALUE"
+            self.inputs[2].type = "VALUE"
     
     TextureType: bpy.props.EnumProperty(name="TextureType",
                                           description="Texture type",
@@ -1860,6 +1897,7 @@ class pbrtv4NodeMix(PBRTV4TreeNode):
     def init(self, context):
         self.outputs.new('NodeSocketColor', "mix")
         Amount_node = self.inputs.new('NodeSocketFloat', "Amount")
+        Amount_node.default_value = 0.5
         Texture1_node = self.inputs.new('NodeSocketColor', "Texture1")
         Texture2_node = self.inputs.new('NodeSocketColor', "Texture2")
 
@@ -1896,7 +1934,10 @@ class pbrtv4NodeMix(PBRTV4TreeNode):
         #tex1
         if not(tex1.is_linked):
             c = tex1.default_value
-            res+='  "rgb tex1" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex1" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex1" [ {} ]\n'.format(c)
         else:
             node_link = tex1.links[0]
             curNode =  node_link.from_node
@@ -1906,7 +1947,144 @@ class pbrtv4NodeMix(PBRTV4TreeNode):
         #tex2
         if not(tex2.is_linked):
             c = tex2.default_value
-            res+='  "rgb tex2" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex2" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex2" [ {} ]\n'.format(c)
+        else:
+            node_link = tex2.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture tex2" ["{}"]'.format(nd.pbrtv4NodeID)
+        
+        data.append(res)
+        
+        return self
+        
+class pbrtv4NodeMarble(PBRTV4TreeNode):
+    '''A custom node'''
+    bl_idname = 'pbrtv4NodeMarble'
+    bl_label = 'Marble'
+    bl_icon = 'TEXTURE'
+    
+    def update_type(self, context):
+        if self.TextureType == "spectrum":
+            self.outputs[0].type = "RGBA"
+        else:
+            self.outputs[0].type = "VALUE"
+    #only spectrum supported, leave it here for now
+    TextureType: bpy.props.EnumProperty(name="TextureType",
+                                          description="Texture type",
+                                          items=[('spectrum', "spectrum", "spectrum texture"),
+                                                 ('float', "float", "float texture")],
+                                          default='spectrum', update=update_type)
+                                          
+    Octaves:bpy.props.IntProperty(default=8)
+    Roughness:bpy.props.FloatProperty(default=0.5)
+    Scale:bpy.props.FloatProperty(default=1.0)
+    Variation:bpy.props.FloatProperty(default=0.2)
+    
+    def init(self, context):
+        self.outputs.new('NodeSocketColor', "marble")
+        
+    def draw_buttons(self, context, layout):
+        #layout.prop(self, "TextureType",text = 'Texture type')
+        layout.prop(self, "Octaves",text = 'Octaves')
+        layout.prop(self, "Roughness",text = 'Roughness')
+        layout.prop(self, "Scale",text = 'Scale')
+        layout.prop(self, "Variation",text = 'Variation')
+        
+    def draw_label(self):
+        return self.bl_label
+        
+    def to_string(self, list, data):
+        name = self.pbrtv4NodeID
+        #res
+        res = 'Texture "{}" "{}" "marble"\n'.format(name, self.TextureType)
+        
+        res+='    "integer octaves" [ {} ]\n'.format(self.Octaves)
+        res+='    "float roughness" [ {} ]\n'.format(self.Roughness)
+        res+='    "float scale" [ {} ]\n'.format(self.Scale)
+        res+='    "float variation" [ {} ]\n'.format(self.Variation)
+        data.append(res)
+        
+        return self
+        
+class pbrtv4NodeDMix(PBRTV4TreeNode):
+    '''A custom node'''
+    bl_idname = 'pbrtv4NodeDMix'
+    bl_label = 'DirectionMix'
+    bl_icon = 'TEXTURE'
+    
+    def update_type(self, context):
+        if self.TextureType == "spectrum":
+            self.outputs[0].type = "RGBA"
+            self.inputs[1].type = "RGBA"
+            self.inputs[2].type = "RGBA"
+        else:
+            self.outputs[0].type = "VALUE"
+            self.inputs[1].type = "VALUE"
+            self.inputs[2].type = "VALUE"
+    
+    TextureType: bpy.props.EnumProperty(name="TextureType",
+                                          description="Texture type",
+                                          items=[('spectrum', "spectrum", "spectrum texture"),
+                                                 ('float', "float", "float texture")],
+                                          default='spectrum', update=update_type)
+    #ScaleValue : bpy.props.FloatProperty(default=0.5)
+    UseCamera: bpy.props.BoolProperty(default=False)
+    
+    def init(self, context):
+        self.outputs.new('NodeSocketColor', "mix")
+        Amount_node = self.inputs.new('NodeSocketVector', "Direction")
+        Amount_node.default_value = [0,1,0]
+        Texture1_node = self.inputs.new('NodeSocketColor', "Texture1")
+        Texture2_node = self.inputs.new('NodeSocketColor', "Texture2")
+
+    def draw_buttons(self, context, layout):
+        #layout.label(text="ID: {}".format(self.Pbrtv4TreeNodeId))
+        layout.prop(self, "TextureType",text = 'Texture type')
+        layout.prop(self, "UseCamera",text = 'use camera vector')
+        
+    def draw_label(self):
+        return self.bl_label
+        
+    #return str to add blocks from connected nodes to current and data to write to file
+    def to_string(self, list, data):
+        name = self.pbrtv4NodeID
+        dir = self.inputs[0]
+        tex1 = self.inputs[1]
+        tex2 = self.inputs[2]
+        #res
+        res = 'Texture "{}" "{}" "directionmix"\n'.format(name, self.TextureType)
+        
+        if self.UseCamera:
+            c = util.getCamVector()
+            res+='  "vector3 dir" [ {} {} {} ]\n'.format(c[0],c[1],c[2])
+        else:
+            c = dir.default_value
+            res+='  "vector3 dir" [ {} {} {} ]\n'.format(c[0],c[1],c[2])
+        
+        #tex1
+        if not(tex1.is_linked):
+            c = tex1.default_value
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex1" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex1" [ {} ]\n'.format(c)
+        else:
+            node_link = tex1.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture tex1" ["{}"]'.format(nd.pbrtv4NodeID)
+            
+        #tex2
+        if not(tex2.is_linked):
+            c = tex2.default_value
+            if self.TextureType == "spectrum":
+                res+='  "rgb tex2" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+            else:
+                res+='  "float tex2" [ {} ]\n'.format(c)
         else:
             node_link = tex2.links[0]
             curNode =  node_link.from_node
@@ -2426,6 +2604,10 @@ def register():
     bpy.utils.register_class(pbrtv4NodeHSV)
     bpy.utils.register_class(pbrtv4SubsurfaceMaterial)
     bpy.utils.register_class(pbrtv4NodeMix)
+    bpy.utils.register_class(pbrtv4NodeDMix)
+    bpy.utils.register_class(pbrtv4NodeMarble)
+    
+    
     bpy.utils.register_class(pbrtv4SheenMaterial)
     bpy.utils.register_class(pbrtv4HomogeneousVolume)
     bpy.utils.register_class(pbrtv4CloudVolume)
@@ -2462,6 +2644,9 @@ def unregister():
     bpy.utils.unregister_class(pbrtv4NodeHSV)
     bpy.utils.unregister_class(pbrtv4SubsurfaceMaterial)
     bpy.utils.unregister_class(pbrtv4NodeMix)
+    bpy.utils.unregister_class(pbrtv4NodeDMix)
+    bpy.utils.unregister_class(pbrtv4NodeMarble)
+    
     bpy.utils.unregister_class(pbrtv4SheenMaterial)
     bpy.utils.unregister_class(pbrtv4HomogeneousVolume)
     bpy.utils.unregister_class(pbrtv4CloudVolume)

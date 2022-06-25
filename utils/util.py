@@ -111,6 +111,14 @@ def deleteAllInFolder(folder):
     #    except Exception as e:
     #        print('Failed to delete %s. Reason: %s' % (file_path, e))
 
+def getCamVector():
+    obj_camera = bpy.context.scene.camera
+    mat= obj_camera.matrix_world
+    dir= mathutils.Vector((0,0,1,1))@mat.transposed()
+    dir.resize_3d()
+    dir.normalize()
+    return dir
+        
 def getFileName(path):
     head, tail = os.path.split(path)
     return tail
