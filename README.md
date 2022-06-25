@@ -11,3 +11,4 @@ Based on mesh_ply.py from Blender Mitsuba Add-On
 
 Render progress and info messages are printed the console (enable the console under Window -> Toggle System Console).
 ![Header Render](images/ws_preview.png)
+![Header Render](images/ws_preview2.png)
