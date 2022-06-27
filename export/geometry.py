@@ -397,7 +397,8 @@ class GeometryExporter:
         if mat_nr == -1:
             name = b_name
         else:
-            name = "%s-%s" %(b_name, b_mesh.materials[mat_nr].name)
+            #name = "%s-%s" %(b_name, b_mesh.materials[mat_nr].name)
+            name = "%s-%s-%s" %(b_name, b_mesh.materials[mat_nr].name, str(mat_nr))
             
         loop_tri_count = len(b_mesh.loop_triangles)
         if loop_tri_count == 0:
@@ -441,7 +442,8 @@ class GeometryExporter:
         if mat_nr == -1:
             name = b_object.name_full
         else:
-            name = "%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name)
+            #name = "%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name)
+            name = "%s-%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name, mat_nr)
         abs_path = os.path.join(folder, "%s.ply" % name)
         
         if not object_instance.is_instance:
