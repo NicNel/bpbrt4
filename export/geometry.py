@@ -45,18 +45,19 @@ class ObjectInfo(object):
         for part_m in self.materials:
             print ('	Material: {} isEmitter: {}'.format(part_m.name, part_m.isEmissive))
     def to_DictStr(self, folder):
-        result = "AttributeBegin\n"
-        result += '    Transform [{}]\n'.format(self.Transform)
+        result = ""
         #loop parts
         for i in range(len(self.parts)):
+            result += "AttributeBegin\n"
+            result += '    '+'Transform [{}]\n'.format(self.Transform)
             result += self.materials[i].getEmissionStr()
             if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
-                result += "AttributeBegin\n"
-                result += '    MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
-            result += '    NamedMaterial "{}"\n'.format(self.materials[i].name)
+                #result += "AttributeBegin\n"
+                result += '    '+'MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
+            result += '    '+'NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
             
-            result += '    Shape "plymesh"\n'
+            result += '    '+'Shape "plymesh"\n'
             result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
             
             if not self.materials[i].alpha == None:
@@ -66,42 +67,42 @@ class ObjectInfo(object):
                 else:
                     result += '    '+'    '+'"float alpha" [{}]\n'.format(alpha["value"])
                 
-            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
-                result += "AttributeEnd\n"
+            #if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
+                #result += "AttributeEnd\n"
+            result += "AttributeEnd\n"
         #loop parts
-        result += "AttributeEnd\n"
         return result
     def to_InstanceDictStr(self, folder):
-        result = "AttributeBegin\n"
+        result = ""
         #result += '    Transform [{}]\n'.format(self.Transform)
-        result += '    ObjectBegin "{}"\n'.format(self.name)
+        result += 'ObjectBegin "{}"\n'.format(self.name)
         #loop parts
         for i in range(len(self.parts)):
+            result += '    '+"AttributeBegin\n"
             if self.materials[i].isEmissive:
                 print('! WARN !', "Area lights doesn't support instancing!")
             #result += self.materials[i].getEmissionStr() #Instances does not support emission!
             if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
-                result += "AttributeBegin\n"
-                result += '    MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
-            result += '        NamedMaterial "{}"\n'.format(self.materials[i].name)
+                #result += "AttributeBegin\n"
+                result += '    '+'    '+'MediumInterface "{}" "{}"\n'.format(self.materials[i].insideMediumName, self.materials[i].outsideMediumName)
+            result += '    '+'    '+'NamedMaterial "{}"\n'.format(self.materials[i].name)
             filename = folder+"{}.ply".format(self.parts[i])
             
-            result += '    Shape "plymesh"\n'
-            result += '    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
+            result += '    '+'    '+'Shape "plymesh"\n'
+            result += '    '+'    '+'    '+'"string filename" [ "{}" ]\n'.format(filename)
             
             if not self.materials[i].alpha == None:
                 alpha = self.materials[i].alpha
                 if not alpha["texture"] == "":
-                    result += '    '+'    '+'"texture alpha" "{}"\n'.format(alpha["texture"])
+                    result += '    '+'    '+'    '+'"texture alpha" "{}"\n'.format(alpha["texture"])
                 else:
-                    result += '    '+'    '+'"float alpha" [{}]\n'.format(alpha["value"])
-            
+                    result += '    '+'    '+'    '+'"float alpha" [{}]\n'.format(alpha["value"])
             #result += '        Shape "plymesh" "string filename" [ "{}" ]\n'.format(filename)
-            if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
-                result += "AttributeEnd\n"
+            #if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
+                #result += "AttributeEnd\n"
+            result += '    '+"AttributeEnd\n"
         #loop parts
-        result += "    ObjectEnd\n"
-        result += "AttributeEnd\n"
+        result += "ObjectEnd\n"
         return result
 
 class GeometryExporter:
@@ -398,7 +399,8 @@ class GeometryExporter:
             name = b_name
         else:
             #name = "%s-%s" %(b_name, b_mesh.materials[mat_nr].name)
-            name = "%s-%s-%s" %(b_name, b_mesh.materials[mat_nr].name, str(mat_nr))
+            #name = "%s-%s-%s" %(b_name, b_mesh.materials[mat_nr].name, mat_nr)
+            name = "{}-{}-{}".format(b_name, b_mesh.materials[mat_nr].name, mat_nr)
             
         loop_tri_count = len(b_mesh.loop_triangles)
         if loop_tri_count == 0:
@@ -443,9 +445,10 @@ class GeometryExporter:
             name = b_object.name_full
         else:
             #name = "%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name)
-            name = "%s-%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name, mat_nr)
-        abs_path = os.path.join(folder, "%s.ply" % name)
-        
+            #name = "%s-%s-%s" %(b_object.name_full, b_object.data.materials[mat_nr].name, mat_nr)
+            name = "{}-{}-{}".format(b_object.name_full, b_object.data.materials[mat_nr].name, mat_nr)
+            
+        abs_path = os.path.join(folder, "{}.ply".format(name))
         if not object_instance.is_instance:
             #save the mesh once, if it's not an instance, or if it's an instance and the original object was not exported
             b_mesh = b_object.to_mesh()
