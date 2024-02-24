@@ -48,6 +48,7 @@ node_categories = [
         NodeItem("pbrtv4Dielectric"),
         #NodeItem("pbrtv4Uber"),
         #NodeItem("pbrtv4Plastic"),
+        NodeItem("pbrtv4Disney"),
         NodeItem("pbrtv4Conductor")
         ]),
     PBRTV4NodeCategory("PBRTV4_OUTPUT", "PBRTV4 Output", items=[
@@ -2589,6 +2590,139 @@ class pbrtv4Output(PBRTV4TreeNode):
     def to_string(self, list, data):
         name = self.pbrtv4NodeID
         return self
+
+class pbrtv4DisneyMaterial(PBRTV4TreeNode):
+    '''A custom node'''
+    bl_idname = 'pbrtv4Disney'
+    bl_label = 'disney'
+    bl_icon = 'MATERIAL'
+
+    Eta : bpy.props.FloatProperty(default=1.5, min=1.0, max=999.0)
+    Specular : bpy.props.FloatProperty(default=0.5, min=0.0, max=999.0)
+    Sheen : bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
+    SheenTint : bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+    Clearcoat : bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
+    Subsurface:bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
+    Metallic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+    ClearcoatGloss:bpy.props.FloatProperty(default=1.0, min=0.0, max=1.0)
+    
+    Ior_type: bpy.props.EnumProperty(name="Ior_type",
+                                              description="IOR type",
+                                              items=[
+                                              ("eta", "eta", "eta"),
+                                              ("specular", "specular", "specular")
+                                              ],
+                                              default='eta')
+    
+    def init(self, context):
+        self.outputs.new('NodeSocketShader', "BSDF")
+        ColorTexture_node = self.inputs.new('NodeSocketColor', "Color Texture")
+        ColorTexture_node.default_value = [0.8, 0.8, 0.8, 1.0]
+        
+        RoughnessTexture_node = self.inputs.new('NodeSocketFloat', "Roughness Texture")
+        RoughnessTexture_node.default_value = 0.001
+        
+        MetallicTexture_node = self.inputs.new('NodeSocketFloat', "Metallic Texture")
+        MetallicTexture_node.default_value = 0.0
+        
+        DisplacementTexture_node = self.inputs.new('NodeSocketFloat', "Displacement Texture")
+        DisplacementTexture_node.hide_value = True
+        
+        NormalTexture_node = self.inputs.new('NodeSocketFloat', "Normal Texture")
+        NormalTexture_node.hide_value = True
+        
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "Ior_type",text = 'IOR type')
+        if self.Ior_type == "eta":
+            layout.prop(self, "Eta",text = 'Eta')
+        else:
+            layout.prop(self, "Specular",text = 'Specular')
+        layout.prop(self, "Sheen",text = 'Sheen')
+        layout.prop(self, "SheenTint",text = 'Sheen Tint')
+        layout.prop(self, "Clearcoat",text = 'Clearcoat')
+        layout.prop(self, "ClearcoatGloss", text = "ClearcoatGloss")
+        layout.prop(self, "Subsurface",text = 'Subsurface')
+        #layout.prop(self, "Metallic",text = 'Metallic')
+        
+    def draw_label(self):
+        return self.bl_label
+        
+    #return str to add blocks from connected nodes to current and data to write to file
+    def to_string(self, list, data):
+        color = self.inputs[0]
+        roughness = self.inputs[1]
+        metallic = self.inputs[2]
+        disp = self.inputs[3]
+        norm = self.inputs[4]
+        
+        name = self.pbrtv4NodeID
+        res ='MakeNamedMaterial "{}"\n'.format(name)
+        res +='  "string type" [ "disney" ]\n'
+        
+        if not(color.is_linked):
+            c = color.default_value
+            res+='  "rgb color" [ {} {} {} ]\n'.format(c[0], c[1], c[2])
+        else:
+            node_link = color.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture color" ["{}"]\n'.format(nd.pbrtv4NodeID)
+            
+        #export roughness
+        if not(roughness.is_linked):
+            c = roughness.default_value
+            res+='  "float roughness" [ {} ]\n'.format(c)
+        else:
+            node_link = roughness.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture roughness" ["{}"]\n'.format(nd.pbrtv4NodeID)
+        
+        #export metallic
+        if not(metallic.is_linked):
+            c = metallic.default_value
+            res+='  "float metallic" [ {} ]\n'.format(c)
+        else:
+            node_link = metallic.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture metallic" ["{}"]\n'.format(nd.pbrtv4NodeID)
+        
+        
+        #export bump
+        if (disp.is_linked):
+            node_link = disp.links[0]
+            curNode =  node_link.from_node
+            nd = curNode.Backprop(list, data)
+            res+='  "texture displacement" ["{}"]\n'.format(nd.pbrtv4NodeID)
+            
+        if (norm.is_linked):
+            node_link = norm.links[0]
+            curNode =  node_link.from_node
+            nrm = curNode.getFileName()
+            res+='  "string normalmap" "{}"\n'.format(nrm)
+        
+        #eta
+        res+='  "float eta" [{}]\n'.format(self.Eta)
+        #Specular
+        res+='  "float specular" [{}]\n'.format(self.Specular)
+        #Sheen
+        res+='  "float sheen" [{}]\n'.format(self.Sheen)
+        #SheenTint
+        res+='  "float sheenTint" [{}]\n'.format(self.SheenTint)
+        #Clearcoat
+        res+='  "float clearcoat" [{}]\n'.format(self.Clearcoat)
+        #ClearcoatGloss
+        res+='  "float clearcoatGloss" [{}]\n'.format(self.ClearcoatGloss)
+        #subsurface
+        res+='  "float subsurface" [{}]\n'.format(self.Subsurface)
+        #metallic
+        #res+='  "float metallic" [{}]\n'.format(self.Metallic)
+        
+        res+='    "bool isSpecular" {}\n'.format("false" if self.Ior_type == "eta" else "true")
+        
+        data.append(res)
+        return self
         
 def register():
     #add internal Id property for Node
@@ -2631,6 +2765,8 @@ def register():
     bpy.utils.register_class(pbrtv4NodeMapping2d)
     #bpy.utils.register_class(pbrtv4NodeOutput)
     #bpy.utils.register_class(PBRTV4NodeTree)
+    bpy.utils.register_class(pbrtv4DisneyMaterial)
+    
     nodeitems_utils.register_node_categories("PBRTV4_NODES", node_categories)
 
 def unregister():
@@ -2669,6 +2805,7 @@ def unregister():
     bpy.utils.unregister_class(pbrtv4NodeMapping2d)
     #bpy.utils.unregister_class(pbrtv4NodeOutput)
     #bpy.utils.unregister_class(PBRTV4NodeTree)
+    bpy.utils.unregister_class(pbrtv4DisneyMaterial)
     
     del bpy.types.Node.pbrtv4NodeID
     nodeitems_utils.unregister_node_categories("PBRTV4_NODES")
