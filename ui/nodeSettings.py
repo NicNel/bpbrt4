@@ -2605,6 +2605,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
     Subsurface:bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
     Metallic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     ClearcoatGloss:bpy.props.FloatProperty(default=1.0, min=0.0, max=1.0)
+    Anisotropic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     
     Ior_type: bpy.props.EnumProperty(name="Ior_type",
                                               description="IOR type",
@@ -2641,6 +2642,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         layout.prop(self, "SheenTint",text = 'Sheen Tint')
         layout.prop(self, "Clearcoat",text = 'Clearcoat')
         layout.prop(self, "ClearcoatGloss", text = "ClearcoatGloss")
+        layout.prop(self, "Anisotropic", text = "Anisotropic")
         layout.prop(self, "Subsurface",text = 'Subsurface')
         #layout.prop(self, "Metallic",text = 'Metallic')
         
@@ -2714,6 +2716,8 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         res+='  "float clearcoat" [{}]\n'.format(self.Clearcoat)
         #ClearcoatGloss
         res+='  "float clearcoatGloss" [{}]\n'.format(self.ClearcoatGloss)
+        #Anisotropic
+        res+='  "float anisotropic" [{}]\n'.format(self.Anisotropic)
         #subsurface
         res+='  "float subsurface" [{}]\n'.format(self.Subsurface)
         #metallic
