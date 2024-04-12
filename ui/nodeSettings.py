@@ -2601,11 +2601,12 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
     Specular : bpy.props.FloatProperty(default=0.5, min=0.0, max=999.0)
     Sheen : bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
     SheenTint : bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
-    Clearcoat : bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
-    Subsurface:bpy.props.FloatProperty(default=0.0, min=0.0, max=999.0)
+    Clearcoat : bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+    Subsurface:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     Metallic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     ClearcoatGloss:bpy.props.FloatProperty(default=1.0, min=0.0, max=1.0)
-    Anisotropic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+    Anisotropic:bpy.props.FloatProperty(default=0.0, min=-1.0, max=1.0)
+    Transmission:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     
     Ior_type: bpy.props.EnumProperty(name="Ior_type",
                                               description="IOR type",
@@ -2621,7 +2622,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         ColorTexture_node.default_value = [0.8, 0.8, 0.8, 1.0]
         
         RoughnessTexture_node = self.inputs.new('NodeSocketFloat', "Roughness Texture")
-        RoughnessTexture_node.default_value = 0.001
+        RoughnessTexture_node.default_value = 0.5
         
         MetallicTexture_node = self.inputs.new('NodeSocketFloat', "Metallic Texture")
         MetallicTexture_node.default_value = 0.0
@@ -2644,6 +2645,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         layout.prop(self, "ClearcoatGloss", text = "ClearcoatGloss")
         layout.prop(self, "Anisotropic", text = "Anisotropic")
         layout.prop(self, "Subsurface",text = 'Subsurface')
+        layout.prop(self, "Transmission",text = 'Transmission')
         #layout.prop(self, "Metallic",text = 'Metallic')
         
     def draw_label(self):
@@ -2690,7 +2692,6 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
             nd = curNode.Backprop(list, data)
             res+='  "texture metallic" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
-        
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
@@ -2718,6 +2719,8 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         res+='  "float clearcoatGloss" [{}]\n'.format(self.ClearcoatGloss)
         #Anisotropic
         res+='  "float anisotropic" [{}]\n'.format(self.Anisotropic)
+        #Transmission
+        res+='  "float transmission" [{}]\n'.format(self.Transmission)
         #subsurface
         res+='  "float subsurface" [{}]\n'.format(self.Subsurface)
         #metallic
