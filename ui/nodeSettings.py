@@ -2605,8 +2605,9 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
     Subsurface:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     Metallic:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     ClearcoatGloss:bpy.props.FloatProperty(default=1.0, min=0.0, max=1.0)
-    Anisotropic:bpy.props.FloatProperty(default=0.0, min=-1.0, max=1.0)
+    Anisotropic:bpy.props.FloatProperty(default=0.0, min=-999.0, max=1.0)
     Transmission:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+    SpecularTint:bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
     
     Ior_type: bpy.props.EnumProperty(name="Ior_type",
                                               description="IOR type",
@@ -2646,6 +2647,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         layout.prop(self, "Anisotropic", text = "Anisotropic")
         layout.prop(self, "Subsurface",text = 'Subsurface')
         layout.prop(self, "Transmission",text = 'Transmission')
+        layout.prop(self, "SpecularTint",text = 'SpecularTint')
         #layout.prop(self, "Metallic",text = 'Metallic')
         
     def draw_label(self):
@@ -2692,6 +2694,7 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
             nd = curNode.Backprop(list, data)
             res+='  "texture metallic" ["{}"]\n'.format(nd.pbrtv4NodeID)
         
+        
         #export bump
         if (disp.is_linked):
             node_link = disp.links[0]
@@ -2709,6 +2712,8 @@ class pbrtv4DisneyMaterial(PBRTV4TreeNode):
         res+='  "float eta" [{}]\n'.format(self.Eta)
         #Specular
         res+='  "float specular" [{}]\n'.format(self.Specular)
+        #Specular tint 
+        res+='  "float specularTint" [{}]\n'.format(self.SpecularTint)
         #Sheen
         res+='  "float sheen" [{}]\n'.format(self.Sheen)
         #SheenTint
