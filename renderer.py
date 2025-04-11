@@ -10,6 +10,7 @@ from .preview.prepare import preparePreview
 import threading
 import time
 import numpy as np
+from OpenImageIO import ImageInput
 
 # Render engine ================================================================================
 class PBRTRenderEngine(bpy.types.RenderEngine):
@@ -23,13 +24,14 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     bl_use_texture = True
     is_busy = False
     bl_use_eevee_viewport = True
+    #bl_use_postprocess = True
     #bl_use_shading_nodes_custom = True
     
-    def __init__(self):
-        pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def __del__(self):
-        pass
+        getattr(super(), "__del__", lambda self: None)(self)
     
     def view_draw(self, context, depsgraph):
         region = context.region
@@ -52,10 +54,6 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         bgl.glDisable(bgl.GL_BLEND)
     
     def render(self, depsgraph):
-        #self.report(type, message)
-        #self.error_set("Start Render Export")
-        #self.th = threading.Thread(target=self.update_frame_th)
-        #self.th.start()
         if self.is_preview:
             if not self.is_busy:
                 self.PreviewRender(depsgraph)
@@ -64,8 +62,6 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 self.FinalRender(depsgraph)
             else:
                 self.postProcess(depsgraph)
-        #free
-        #self.free_blender_memory()
         
     def postProcess(self, depsgraph):
         util.is_postProcess = False
@@ -174,15 +170,6 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         #clear exporter data
         if hasattr(self, 'geometry_exporter'):
             self.geometry_exporter.ClearExportData()
-        
-    # Check first-run installation
-    #install.install()
-    # Compute film dimensions
-    #scale = scene.render.resolution_percentage / 100.0
-    #sx = int(scene.render.resolution_x * scale)
-    #sy = int(scene.render.resolution_y * scale)
-    #result = self.begin_result(0, 0, sx, sy)
-    #self.end_result(result)
         
     def PreviewRender(self, depsgraph):
         #print (bpy.context.view_layer.objects.active.active_material)
@@ -742,17 +729,53 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     def SplitGbuffer(self, props, file, ext):
         itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
         cmd = [ itoolExecPath, "split-gbuffer", file, "--ext", ext]
-        #cmd = [ itoolExecPath, "split-gbuffer", file, "--outpath", folder]
         util.runCmd(cmd)
         
+    def loadExrData(self, file):
+        #print(self.is_preview, bpy.context.scene.render.use_border)
+        if not util.isFileExist(file):
+            return None, 0
+        input = ImageInput.open(file)
+        if input is None :
+            return None, 0
+        spec = input.spec()
+        c = spec.nchannels
+        w = spec.width
+        h = spec.height
+        pcount = w*h
+        if spec.deep:
+            #data = input.read_native_deep_image()
+            #print(data)
+            print("Deep image loading not implemented yet...")
+            input.close()
+            return None, 0
+        else:
+            data = input.read_image()
+            data = np.array(data)
+            if c == 4:
+                #TODO: flip y/check size
+                data = data.reshape((pcount,c))
+            else:
+                #load first 3 channels i.e. R,G,B
+                nc = min(c, 3)
+                walpha = np.ones((h, w, 4))
+                walpha[:,:,:nc] = data[::-1, :, :nc] #flipped by height
+                data = walpha.reshape((pcount, 4))
+        input.close()
+        return data, pcount
+        
     def LoadResult(self, file, sx, sy):
+        use_b = bpy.context.scene.render.use_border
+        data, pcount = self.loadExrData(file)
+        
         result = self.begin_result(0, 0, sx, sy)
-        layer = result.layers[0]
-        layer.load_from_file(file)
+        main_pass = result.layers[0].passes["Combined"]
+        if not data is None:
+            if (not self.is_preview and use_b) or pcount == sx*sy:
+                main_pass.rect = data
         self.end_result(result)
     
     def RunRender(self, props, depsgraph, sceneFile):
-        #self.test_break()
         # Compute pbrt executable path
         pbrtExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'pbrt.exe'
         file = sceneFile    
@@ -776,12 +799,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 if ext == "exr":
                     denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoised")
                     self.DenoiseOptix(props, outImagePath, denoised)
-                    #result = self.get_result()
-                    #result.layers[0].load_from_file(denoised)
                     self.LoadResult(denoised, props["scale_x"], props["scale_y"])
-                elif ext=="pfm": #oidn
-                    #self.add_pass("Albedo", 4, "RGBA")
-                    #self.add_pass("Normal", 4, "RGBA")
+                elif ext=="pfm":
                     self.SplitGbuffer(props, outImagePath, ext)
                     beauty = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_0",ext)
                     albedo = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_1",ext)
@@ -789,80 +808,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                     denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoisedOidn")
                     self.DenoiseExternalOIDN(props, beauty, albedo, normal, denoised)
                     
-                    #result = self.get_result()
-                    #result.layers[0].load_from_file(denoised)
                     self.LoadResult(denoised, props["scale_x"], props["scale_y"])
             else:
-                #scene = depsgraph.scene
-                active_view = self.active_view_get()
-                result = self.get_result()
-                self.add_pass("Albedo", 4, "RGBA")
-                self.add_pass("Normal", 4, "RGBA")
-                self.SplitGbuffer(props, outImagePath, ext)
-                beauty = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_0",ext)
-                albedo = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_1",ext)
-                normal = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_2",ext)
-                #--------beauty---pass----
-                img = bpy.data.images.load(beauty, check_existing=False)
-                layerPass = result.layers[0].passes.find_by_name("Combined",active_view)
-                pixel_count = img.size[0] * img.size[1]
-                color = [0.0, 0.0, 0.0, 1.0]
-                layerPass.rect = [color] * pixel_count
-                data = np.array_split(img.pixels, len(img.pixels)/4)
-                print("AOV color done")
-                layerPass.rect = data
-                bpy.data.images.remove(img)
-                #--------beauty---pass----
-                #--------albedo---pass----
-                img = bpy.data.images.load(albedo, check_existing=False)
-                layerPass = result.layers[0].passes.find_by_name("Albedo", active_view)
-                pixel_count = img.size[0] * img.size[1]
-                color = [0.0, 0.0, 0.0, 1.0]
-                layerPass.rect = [color] * pixel_count
-                data = np.array_split(img.pixels, len(img.pixels)/4)
-                print("AOV albedo done")
-                layerPass.rect = data
-                bpy.data.images.remove(img)
-                #--------albedo---pass----
-                #--------normal---pass----
-                img = bpy.data.images.load(normal, check_existing=False)
-                layerPass = result.layers[0].passes.find_by_name("Normal", active_view)
-                pixel_count = img.size[0] * img.size[1]
-                color = [0.0, 0.0, 0.0, 1.0]
-                layerPass.rect = [color] * pixel_count
-                data = np.array_split(img.pixels, len(img.pixels)/4)
-                print("AOV normal done")
-                layerPass.rect = data
-                bpy.data.images.remove(img)
-                #--------normal---pass----
-            
-            #scene = depsgraph.scene
-            #scale = scene.render.resolution_percentage / 100.0
-            #self.size_x = int(scene.render.resolution_x * scale)
-            #self.size_y = int(scene.render.resolution_y * scale)
-            
-            #self.update_render_passes(scene, renderlayer="beauty")
-            #self.update_render_passes(scene, renderlayer="albedo")
-            
-            #result = self.begin_result(0, 0, self.size_x, self.size_y, layer="beauty")
-            #result.layers[0].load_from_file(beauty)
-            #self.end_result(result)
-            #result = self.begin_result(0, 0, self.size_x, self.size_y, layer="albedo")
-            #result.layers[0].load_from_file(albedo)
-            #self.end_result(result)
-            
-            #self.register_pass(scene, None, "Albedo", 3, "albedo", 'COLOR')
-            #self.register_pass(scene, renderlayer, "Albedo", 3, "RGB", 'COLOR')
-            #self.register_pass(scene, renderlayer, "Normal", 3, "RGB", 'COLOR')
-            #self.register_pass(scene, renderlayer, "Albedo", 1, "X", 'VALUE')
-            #self.add_pass("beauty", 3, "RGB", layer="Albedo")
-            #self.add_pass("albedo", 3, "RGB", layer="View Layer")
-            #self.add_pass("normal", 3, "RGB", layer="View Layer")
-            
+                outImagePath = props['pbrt_rendered_file']
+                self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
         else:
             outImagePath = props['pbrt_rendered_file']
-            #result = self.get_result()
-            #result.layers[0].load_from_file(outImagePath)
             self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
          
     def DenoiseExternal(self, props, beauty, albedo, normal, result):
@@ -931,12 +882,11 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
         bpy.ops.image.open(filepath=outImagePath)
     
-    def RunTestOperator(self):
-        print("Operator test!!!!!!!!!!!")
-        
     def update_render_passes(self, scene=None, renderlayer=None):
         if not self.is_preview:
             if bpy.context.scene.pbrtv4.pbrt_film_type == 'gbuffer':
                 self.register_pass(scene, renderlayer, "Combined", 4, "RGBA", 'COLOR')
                 self.register_pass(scene, renderlayer, "Albedo", 4, "RGBA", 'COLOR')
                 self.register_pass(scene, renderlayer, "Normal", 4, "RGBA", 'VECTOR')
+            else:
+                self.register_pass(scene, renderlayer, "Combined", 4, "RGBA", 'COLOR')
