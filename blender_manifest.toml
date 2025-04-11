@@ -1,0 +1,19 @@
+schema_version = "1.0.0"
+
+id = "bpbrt4"
+version = "1.0.0"
+name = "PBRT-V4"
+tagline = "Pbrt-v4 for Blender 4.x"
+maintainer = "NicNel"
+website = "https://github.com/NicNel/bpbrt4/"
+
+type = "add-on"
+
+blender_version_min = "4.0.0"
+blender_version_max = "5.0.0"
+
+platforms = ["windows-x64"]
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
