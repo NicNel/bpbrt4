@@ -290,6 +290,9 @@ def createFolder(folder):
         os.makedirs(folder)
     return folder
     
+def isFileExist(file):
+    return os.path.isfile(file)
+    
 def get_pid(name):
     return check_output(["pidof",name])
 
