@@ -80,7 +80,7 @@ class ObjectInfo(object):
         for i in range(len(self.parts)):
             result += '    '+"AttributeBegin\n"
             if self.materials[i].isEmissive:
-                print('! WARN !', "Area lights doesn't support instancing!")
+                print('! INFO !', "Area lights doesn't support instancing!")
             #result += self.materials[i].getEmissionStr() #Instances does not support emission!
             if not self.materials[i].insideMediumName == "" or not self.materials[i].outsideMediumName == "":
                 #result += "AttributeBegin\n"
@@ -393,7 +393,8 @@ class GeometryExporter:
             print('! WARN !', "Object: {} has no mesh. Skipping.".format(b_name))
             return False
         
-        b_mesh.calc_normals()
+        #not need in blender 4?
+        #b_mesh.calc_normals()
         b_mesh.calc_loop_triangles() # Compute the triangle tesselation
         if mat_nr == -1:
             name = b_name
@@ -453,7 +454,11 @@ class GeometryExporter:
             #save the mesh once, if it's not an instance, or if it's an instance and the original object was not exported
             b_mesh = b_object.to_mesh()
             if self.save_mesh(b_mesh, b_object.matrix_world, b_object.name_full, abs_path, mat_nr, info) and mat_nr >= 0:
-                mat_info = self.export_mat(object_instance, mat_nr, abs_path)
+                try:
+                    mat_info = self.export_mat(object_instance, mat_nr, abs_path)
+                except Exception as error:
+                    print('! ERROR !', 'Error in material "{}" export'.format(b_object.data.materials[mat_nr].name))
+                    b_object.to_mesh_clear()
                 #print(mat_info)
                 if not mat_info["emission"] == None:
                     info.materials[-1] = mat_info["emission"]
@@ -503,7 +508,7 @@ class GeometryExporter:
         return result
 
     #"point portal" [ 1 2 3 1 2 3 ...]
-    #4 (float) frame points (? not sure for now)
+    #4 (float) frame points
     def ExportPortal(self, instance):
         b_object = instance.object
         b_mesh = b_object.to_mesh()
@@ -728,11 +733,6 @@ class GeometryExporter:
                         info = self.export_object(object_instance,geometryFolder)
                         
                         if info.notEmpty():
-                            #info2 = copy.deepcopy(info)
-                            #info2.parts = info.parts.copy()
-                            #info2.materials = info.materials.copy()
-                            #print ("Original: {}".format(info.to_DictStr('geometry/')), 'INFO')
-                            #print ("Instance: {}".format(info2.to_InstanceDictStr('geometry/')), 'INFO')
                             infoLst[evaluated_obj.name] = info.to_InstanceDictStr('geometry/')
                             GeometryLst.append(info.to_DictStr('geometry/'))
             elif object_type == 'LIGHT':

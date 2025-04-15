@@ -180,7 +180,8 @@ class PBRTV4RenderSettings(bpy.types.PropertyGroup):
         description="type",
         items=[
             ("optix", "Optix", "Optix denoiser"),
-            ("oidn", "Oidn External", "Oidn External denoiser")],
+            #("oidn", "Oidn External", "Oidn External denoiser")
+            ],
             default = "optix"
     )
     pbrt_denoiser_dir: bpy.props.StringProperty(name="pbrt_denoiser_dir",
