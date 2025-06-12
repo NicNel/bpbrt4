@@ -31,12 +31,16 @@ class MatInfo(object):
         self.outsideMediumName = ""
         self.temperature = 6500
         self.alpha = None
+        self.path = ""
         
     def getEmissionStr(self):
         if self.isEmissive:
             result = '    '+'AreaLightSource "diffuse"\n'
             if self.preset == 'color':
-                result += '    '+'    '+'"rgb L" [ {} {} {} ]\n'.format(self.emColor[0], self.emColor[1], self.emColor[2])
+                if not self.path == "":
+                    result += '    '+'    '+'"string filename" "{}"\n'.format(self.path)
+                else:
+                    result += '    '+'    '+'"rgb L" [ {} {} {} ]\n'.format(self.emColor[0], self.emColor[1], self.emColor[2])
             elif self.preset == 'blackbody':
                 result += "    "+"    "+'"blackbody L" [{}]\n'.format(self.temperature)
             else:
@@ -45,11 +49,12 @@ class MatInfo(object):
             return result
         return ""
     @staticmethod
-    def CreateInfo(_name, _isEm = False, _color = [0,0,0], _power = 0, _preset = "", _temp = 6500):
+    def CreateInfo(_name, _isEm = False, _path = "", _color = [0,0,0], _power = 0, _preset = "", _temp = 6500):
         matInfo = MatInfo(_name)
         matInfo.isEmissive = _isEm
         matInfo.preset = _preset
         matInfo.scale = _power
+        matInfo.path = _path
         matInfo.emColor.append(_color[0]);
         matInfo.emColor.append(_color[1]);
         matInfo.emColor.append(_color[2]);
@@ -242,14 +247,21 @@ def realpath(path):
     return path
     
 def switchpath(path):
-    p = pathlib.PureWindowsPath(path)
+    p = pathlib.PurePath(path)
     return p.as_posix()
 
 def getFileName(file):
-    #base = os.path.basename(file)
-    #name = os.path.splitext(base)
-    #return name[0]
     return Path(file).stem
+    
+def finalPath(path):
+    return switchpath(realpath(path))
+    
+def concFFPath(folder, *args):
+    res = folder
+    for p in args:
+        res = os.path.join(res, p)
+    res = finalPath(res)
+    return res
 
 def Lerp(a, b, t):
     return a-(a*t)+(b*t)
@@ -305,7 +317,7 @@ def restart_process(name):
     os.kill(pid, signal.SIGCONT)
     
 def stopPbrt():
-    name = "pbrt.exe"
+    name = "pbrt"
     stop_process(name)
 
 #from BlendLuxCore

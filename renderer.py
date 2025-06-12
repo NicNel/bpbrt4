@@ -68,13 +68,13 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         props = {}
         self.getProps(props)
         file = props['pbrt_rendered_file']
-        outImg = os.path.join(props['pbrt_project_dir'], 'postProcess.exr')
+        outImg = util.concFFPath(props['pbrt_project_dir'], 'postProcess.exr')
         if props['pbrt_film_type'] == 'gbuffer':
             if props['pbrt_run_denoiser'] == True:
                 if props['pbrt_denoiser_type'] == "optix":
-                    file = os.path.join(props['pbrt_project_dir'], 'denoised.exr')
+                    file = util.concFFPath(props['pbrt_project_dir'], 'denoised.exr')
                 else:
-                    file = os.path.join(props['pbrt_project_dir'], 'denoisedOidn.exr')
+                    file = util.concFFPath(props['pbrt_project_dir'], 'denoisedOidn.exr')
         inputFile = file
         changed = False
         if bpy.context.scene.pbrtv4.pbrt_ACES_toFilm:
@@ -94,7 +94,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         self.LoadResult(outImg, sx, sy)
         
     def bloomImage(self, img, outImg, props):
-        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        pbrtImgtoolPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         
         lv = bpy.context.scene.pbrtv4.pbrt_bloom_lvl
         sc = bpy.context.scene.pbrtv4.pbrt_bloom_scale
@@ -109,11 +109,9 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         cmd = [ pbrtImgtoolPath, "bloom"]+iter+level+out+scale+width+file
         util.runCmd(cmd)
-        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
-        #bpy.ops.image.open(filepath=outImg)
-        
+                
     def convertImage(self, img, outImg, props):
-        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        pbrtImgtoolPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         
         #lv = bpy.context.scene.pbrtv4.pbrt_bloom_lvl
         #sc = bpy.context.scene.pbrtv4.pbrt_bloom_scale
@@ -128,15 +126,13 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         
         cmd = [ pbrtImgtoolPath, "convert"]+out+toFilmic+file
         util.runCmd(cmd)
-        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
-        #bpy.ops.image.open(filepath=outImg)
-    
+            
     def update_frame_th(self):
         while True:
             print("\nUpdate frame...\n")
             #result = self.get_result()
             iname = 'render_{}'.format(bpy.context.scene.pbrtv4.pbrt_integrator)
-            filename = util.switchpath(bpy.context.scene.pbrtv4.pbrt_project_dir)+'/'+'{}.exr'.format(iname)
+            filename = util.concFFPath(bpy.context.scene.pbrtv4.pbrt_project_dir, '{}.exr'.format(iname))
             #result.layers[0].load_from_file(filename)
             self.LoadResult(filename, props["scale_x"], props["scale_y"])
             time.sleep(5)
@@ -154,7 +150,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             print("--- Export takes %s min ---" % mr)
         self.exportSettings(depsgraph,props)
         print("RENDER STARTTTTTTT")
-        filename = util.switchpath(props['pbrt_project_dir'])+'/'+'scene.pbrt'
+        filename = util.concFFPath(props['pbrt_project_dir'], 'scene.pbrt')
         
         if not props['pbrt_export_scene_only']:
             if props['pbrt_image_server'] == "TEV":
@@ -192,12 +188,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             
             #-----------------------------------
             # Compute film dimensions
-            filename = os.path.join(props["previewFolder"], 'preview.exr')
+            filename = util.concFFPath(props["previewFolder"], 'preview.exr')
             filmtype = "rgb"
             #export_result ='Film "gbuffer"\n'
             #export_result ='Film "rgb"\n'
             export_result ='Film "{}"\n'.format(filmtype)
-            export_result +='    "string filename" [ "{}" ]\n'.format(util.switchpath(filename))
+            export_result +='    "string filename" [ "{}" ]\n'.format(filename)
             export_result +='    "integer yresolution" [ {} ]\n'.format(self.size_y)
             export_result +='    "integer xresolution" [ {} ]\n'.format(self.size_x)  
             
@@ -231,7 +227,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             #-----------------------------------
             
             #test write file
-            settingsFile = os.path.join(props["previewFolder"], 'settings.pbrt')
+            settingsFile = util.concFFPath(props["previewFolder"], 'settings.pbrt')
             with open(settingsFile, 'w') as f:
                 f.write(export_result)
                 f.close()
@@ -241,8 +237,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             mat = bpy.context.view_layer.objects.active.active_material
             info = GeometryExporter.export_mat_get(mat, mat_name)
             materialData = ''.join(info["data"])
-            bsdfFile = os.path.join(props["previewFolder"], "preview_bsdf.pbrt")
-            shapeParamFile = os.path.join(props["previewFolder"], "shape_param.pbrt")
+            bsdfFile = util.concFFPath(props["previewFolder"], "preview_bsdf.pbrt")
+            shapeParamFile = util.concFFPath(props["previewFolder"], "shape_param.pbrt")
             
             with open(bsdfFile, 'w') as f:
                 f.write(materialData)
@@ -277,8 +273,10 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             
     def RunPreviewRender(self, props, filename):
         #run render
-        sceneFile = os.path.join(props["previewFolder"], "scene.pbrt")
-        pbrtExecPath = util.switchpath(bpy.context.scene.pbrtv4.pbrt_bin_dir)+'/'+'pbrt.exe'
+        
+        sceneFile = util.concFFPath(props["previewFolder"], "scene.pbrt")
+        pbrtExecPath = util.concFFPath(bpy.context.scene.pbrtv4.pbrt_bin_dir, "pbrt")
+        
         #start render
         if bpy.context.scene.pbrtv4.pbrt_compute_mode == 'CPU':
             cmd = [ pbrtExecPath, sceneFile ]
@@ -331,7 +329,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         props['pbrt_export_scene_only'] = bpy.context.scene.pbrtv4.pbrt_export_scene_only
         
         iname = 'render_{}'.format(props['pbrt_integrator'])
-        filename = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format(iname)
+        filename = util.concFFPath(props['pbrt_project_dir'], '{}.exr'.format(iname))
         props['pbrt_rendered_file'] = filename
     
     def exportSettings(self, depsgraph, props):
@@ -360,7 +358,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         sceneData += 'Include "geometry.pbrt"\n'
         
         sceneFolder = props['pbrt_project_dir']
-        sceneFile = os.path.join(props['pbrt_project_dir'], "scene.pbrt")
+        sceneFile = util.concFFPath(props['pbrt_project_dir'], "scene.pbrt")
         
         #test write file
         with open(sceneFile, 'w') as f:
@@ -379,12 +377,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     def exportObjects(self, depsgraph, props):
         self.geometry_exporter = GeometryExporter()
         
-        geometryFolder =os.path.join(props['pbrt_project_dir'], "geometry")
-        texturesFolder = os.path.join(props['pbrt_project_dir'], "textures")
+        geometryFolder =util.concFFPath(props['pbrt_project_dir'], "geometry")
+        texturesFolder = util.concFFPath(props['pbrt_project_dir'], "textures")
         if not os.path.exists(texturesFolder):
             os.makedirs(texturesFolder)
-        geometryFile =os.path.join(props['pbrt_project_dir'], "geometry.pbrt")
-        materialFile = os.path.join(props['pbrt_project_dir'], "materials.pbrt")
+        geometryFile =util.concFFPath(props['pbrt_project_dir'], "geometry.pbrt")
+        materialFile = util.concFFPath(props['pbrt_project_dir'], "materials.pbrt")
         
         #delete files or not?
         '''
@@ -428,7 +426,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     def doDisplacement(self, props, dInfo):
         print(dInfo.ToStr())
         print("Processing PLY file")
-        plytoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'plytool.exe'
+        plytoolExecPath = util.concFFPath(props['pbrt_bin_dir'], 'plytool')
         cmd = [ plytoolExecPath, "displace", dInfo.outfile, "--outfile", dInfo.outfile, "--image", dInfo.image, "--scale", str(dInfo.scale), "--edge-length", str(dInfo.edge_length), "--uvscale", str(dInfo.uvscale)]
         util.runCmd(cmd)
         print("Done")
@@ -510,8 +508,8 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 #get lens file
                 currDir = os.path.abspath(os.path.dirname(__file__))
                 #print (currDir)
-                lensfile =os.path.join(currDir, "lenses", cam_ob.data.pbrtv4_camera.pbrtv4_realistic_camera_file)
-                export_result+='    '+'"string lensfile" ["{}"]\n'.format(util.switchpath(lensfile))
+                lensfile =util.concFFPath(currDir, "lenses", cam_ob.data.pbrtv4_camera.pbrtv4_realistic_camera_file)
+                export_result+='    '+'"string lensfile" ["{}"]\n'.format(util.finalPath(lensfile))
                 
                 if cam_ob.data.pbrtv4_camera.pbrtv4_realistic_camera_apperture != 'none':
                     export_result+='    '+'"string aperture" "{}"\n'.format(cam_ob.data.pbrtv4_camera.pbrtv4_realistic_camera_apperture)
@@ -698,10 +696,10 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             export_result +='        "rgb L" [ {} {} {} ]\n'.format(props['pbrtv4_world_color'][0],props['pbrtv4_world_color'][1],props['pbrtv4_world_color'][2])
         elif bpy.context.scene.pbrtv4_world.pbrtv4_world_mode == 'ENVIRONMENT':
             filePath = bpy.context.scene.pbrtv4_world.pbrtv4_world_path.filepath
-            file = util.switchpath(util.realpath(filePath))
+            file = util.finalPath(filePath)
             export_result +='        "string filename" [ "{}" ]\n'.format(file)
         else: #Nishita
-            file = util.switchpath(props['pbrt_project_dir'])+'/'+"NishitaSky.exr"
+            file = util.concFFPath(props['pbrt_project_dir'], "NishitaSky.exr")
             #create sky envmap
             nishita_albedo = bpy.context.scene.pbrtv4_world.pbrtv4_nishita_albedo;
             nishita_elevation=bpy.context.scene.pbrtv4_world.pbrtv4_nishita_elevation;
@@ -722,12 +720,12 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         return export_result
         
     def CreateNishitaSky(self, props, albedo, elevation, turbidity, res, file):
-        itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
+        itoolExecPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         cmd = [ itoolExecPath, "makesky", "--albedo", str(albedo), "--elevation", str(elevation), "--outfile", file, "--turbidity", str(turbidity), "--resolution", str(res)]
         util.runCmd(cmd)
         
     def SplitGbuffer(self, props, file, ext):
-        itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
+        itoolExecPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         cmd = [ itoolExecPath, "split-gbuffer", file, "--ext", ext]
         util.runCmd(cmd)
         
@@ -777,7 +775,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
     
     def RunRender(self, props, depsgraph, sceneFile):
         # Compute pbrt executable path
-        pbrtExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'pbrt.exe'
+        pbrtExecPath = util.concFFPath(props['pbrt_bin_dir'], 'pbrt')
         file = sceneFile    
         #start render
         if props['pbrt_compute_mode'] == 'CPU':
@@ -797,15 +795,15 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
                 ext = "pfm"
             if props['pbrt_run_denoiser'] == True:
                 if ext == "exr":
-                    denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoised")
+                    denoised = util.concFFPath(props['pbrt_project_dir'], '{}.exr'.format("denoised"))
                     self.DenoiseOptix(props, outImagePath, denoised)
                     self.LoadResult(denoised, props["scale_x"], props["scale_y"])
                 elif ext=="pfm":
                     self.SplitGbuffer(props, outImagePath, ext)
-                    beauty = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_0",ext)
-                    albedo = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_1",ext)
-                    normal = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.{}'.format("pass_2",ext)
-                    denoised = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.exr'.format("denoisedOidn")
+                    beauty = util.concFFPath(props['pbrt_project_dir'], '{}.{}'.format("pass_0",ext))
+                    albedo = util.concFFPath(props['pbrt_project_dir'], '{}.{}'.format("pass_1",ext))
+                    normal = util.concFFPath(props['pbrt_project_dir'], '{}.{}'.format("pass_2",ext))
+                    denoised = util.concFFPath(props['pbrt_project_dir'], '{}.exr'.format("denoisedOidn"))
                     self.DenoiseExternalOIDN(props, beauty, albedo, normal, denoised)
                     
                     self.LoadResult(denoised, props["scale_x"], props["scale_y"])
@@ -817,28 +815,28 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
          
     def DenoiseExternal(self, props, beauty, albedo, normal, result):
-        denoiserExecPath = util.switchpath(props['pbrt_denoiser_dir'])+'/'+'Denoiser.exe'
+        denoiserExecPath = util.concFFPath(props['pbrt_denoiser_dir'], 'Denoiser')
         cmd = [ denoiserExecPath, "-i", beauty, "-a", albedo, "-n", normal, "-o", result]
         util.runCmd(cmd)
         
     def DenoiseOptix(self, props, buffer, result):
-        pbrtImgtoolPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
+        pbrtImgtoolPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         cmd = [ pbrtImgtoolPath, "denoise-optix", buffer, "-outfile", result]
         util.runCmd(cmd)
         
     def DenoiseExternalOIDN(self, props, beauty, albedo, normal, result):
-        denoisedPfm = util.switchpath(props['pbrt_project_dir'])+'/'+'{}.pfm'.format("denoised")
+        denoisedPfm = util.concFFPath(props['pbrt_project_dir'], '{}.pfm'.format("denoised"))
         
-        denoiserExecPath = util.switchpath(props['pbrt_denoiser_dir'])+'/'+'oidnDenoise.exe'
+        denoiserExecPath = util.concFFPath(props['pbrt_denoiser_dir'], 'oidnDenoise')
         cmd = [ denoiserExecPath, "-hdr", beauty, "-alb", albedo, "-nrm", normal, "-o", denoisedPfm]
         util.runCmd(cmd)
         
-        itoolExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
+        itoolExecPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         cmd = [ itoolExecPath, "convert", denoisedPfm, "--outfile", result]
         util.runCmd(cmd)
     
     def run_tev_th(self):
-        pbrtTevPath = util.switchpath(bpy.context.scene.pbrtv4.pbrt_bin_dir)+'/'+'tev.exe'
+        pbrtTevPath =util.concFFPath(bpy.context.scene.pbrtv4.pbrt_bin_dir, 'tev')
         #start tev
         cmd = [ pbrtTevPath ]
         util.runCmd(cmd)
@@ -849,7 +847,7 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
         #pbrt --display-server localhost:14158 scene.pbrt
         # Compute pbrt executable path
         outImagePath = props['pbrt_rendered_file']
-        pbrtExecPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'pbrt.exe'
+        pbrtExecPath = util.concFFPath(props['pbrt_bin_dir'], 'pbrt')
         file = sceneFile
         #start render
         if props['pbrt_compute_mode'] == 'CPU':
@@ -858,28 +856,23 @@ class PBRTRenderEngine(bpy.types.RenderEngine):
             cmd = [ pbrtExecPath, "--gpu", "--display-server", "localhost:14158", '--write-partial-images', file ]
         util.runCmd(cmd)
         
-        #outImagePath = os.path.join(outDir, "pbrt.exr")
-        #outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'render.exr'
-        #bpy.ops.image.open(filepath=outImagePath)
-        #result = self.get_result()
-        #result.layers[0].load_from_file(outImagePath)
         self.LoadResult(outImagePath, props["scale_x"], props["scale_y"])
     
     def RunDenoiser(self, props):
         #imgtool denoise-optix noisy.exr --outfile denoised.exr
         # Compute pbrt executable path
-        pbrtImgtoolPath = util.switchpath(props['pbrt_bin_dir'])+'/'+'imgtool.exe'
-        inImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'render.exr'
-        outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
+        pbrtImgtoolPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
+        inImagePath = util.concFFPath(props['pbrt_project_dir'], 'render.exr')
+        outImagePath = util.concFFPath(props['pbrt_project_dir'], 'Denoised.exr')
         
         cmd = [ pbrtImgtoolPath, "denoise-optix", inImagePath, "--outfile", outImagePath]
         #util.runCmd(cmd)
         
         outConvPbrtFile = open(outImagePath, "w")
-        util.runCmd(cmd, stdout=outConvPbrtFile, cwd=util.switchpath(props['pbrt_project_dir']))
+        util.runCmd(cmd, stdout=outConvPbrtFile, cwd=util.finalPath(props['pbrt_project_dir']))
         outConvPbrtFile.close()
         
-        outImagePath = util.switchpath(props['pbrt_project_dir'])+'/'+'Denoised.exr'
+        outImagePath = util.concFFPath(props['pbrt_project_dir'], 'Denoised.exr')
         bpy.ops.image.open(filepath=outImagePath)
     
     def update_render_passes(self, scene=None, renderlayer=None):

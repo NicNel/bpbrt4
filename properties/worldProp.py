@@ -65,7 +65,7 @@ class convertEnvOperator(bpy.types.Operator):
         envmap.update()
         return {"FINISHED"}
     def convert_map(self, envmap):
-        baseTexture = util.switchpath(util.realpath(envmap))
+        baseTexture = util.finalPath(envmap)
         baseName = util.getFileName(baseTexture)
         print(baseName)
         ext = util.getExtension(baseTexture)
@@ -81,10 +81,9 @@ class convertEnvOperator(bpy.types.Operator):
             else:
                 baseName = util.replaceExtension(baseName+"_converted", "exr")
                 print(baseName)
-                textureFolder = util.createFolder(os.path.join(bpy.context.scene.pbrtv4.pbrt_project_dir, "textures"))
-                converted_file = os.path.join(textureFolder, baseName)
-                converted_file = util.switchpath(converted_file)
-                itoolExecPath = os.path.join(bpy.context.scene.pbrtv4.pbrt_bin_dir, "imgtool.exe")
+                textureFolder = util.createFolder(util.concFFPath(bpy.context.scene.pbrtv4.pbrt_project_dir, "textures"))
+                converted_file = util.concFFPath(textureFolder, baseName)
+                itoolExecPath = util.concFFPath(bpy.context.scene.pbrtv4.pbrt_bin_dir, "imgtool")
                 cmd = [ itoolExecPath, "makeequiarea", baseTexture, "--outfile", converted_file]
                 #print(cmd)
                 util.runCmd(cmd)

@@ -1,6 +1,6 @@
-![Header Render](images/banner1.png)
+![Header Render](images/banner2.png)
 
-# bpbrt4 for Windows
+# bpbrt4
 
 ### pbrt-v4 Render Engine/Exporter Add-on for Blender
 
@@ -29,5 +29,13 @@ Render progress and information messages are printed to the console (enable the 
 The current version of bpbrt4 is suitable for Blender `4.x` versions.
 The add-on version for Blender `3.x` is available at the branch [Blender3x](https://github.com/NicNel/bpbrt4/tree/Blender3x).
 My experiments with pbrt-v4 code (Disney shader implementation) are available at [pbrt-v4 fork](https://github.com/NicNel/pbrt-v4).
+
+### Supported OS
+
+Bpbrt4 add-on has been tested on:
+
+| Windows  | Linux | MacOS |
+| ------------- | ------------- | ------------- |
+| Windows-10  | Ubuntu-22.04  | Not tested |
 
 ![Header Render](images/ws_preview2.png)

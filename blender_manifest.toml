@@ -10,9 +10,9 @@ website = "https://github.com/NicNel/bpbrt4/"
 type = "add-on"
 
 blender_version_min = "4.0.0"
-blender_version_max = "5.0.0"
+# blender_version_max = "5.0.0"
 
-platforms = ["windows-x64"]
+# platforms = ["windows-x64", "linux-x64"]
 
 license = [
   "SPDX:GPL-3.0-or-later",

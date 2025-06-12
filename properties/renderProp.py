@@ -388,7 +388,7 @@ class postProcessOperator(bpy.types.Operator):
         bpy.data.images.remove(img)
     
     def bloomImage(self, img, outImg, props):
-        pbrtImgtoolPath = os.path.join(props['pbrt_bin_dir'], 'imgtool.exe')
+        pbrtImgtoolPath = util.concFFPath(props['pbrt_bin_dir'], 'imgtool')
         
         iter = ["--iterations", str(5)]
         level = ["--level", str(1)]

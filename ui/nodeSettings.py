@@ -254,7 +254,7 @@ class pbrtv4MeasuredMaterial(PBRTV4TreeNode):
         
         res ='MakeNamedMaterial "{}"\n'.format(name)
         res +='    "string type" [ "measured" ]\n'
-        res +='    "string filename" [ "{}" ]\n'.format(util.switchpath(util.realpath(self.filename)))
+        res +='    "string filename" [ "{}" ]\n'.format(util.finalPath(self.filename))
         
         #export bump
         res += AddDispTexture(disp, list, data)
@@ -1253,13 +1253,13 @@ class pbrtv4NodeImageTexture2d(PBRTV4TreeNode):
         return self.bl_label
     
     def getFileName(self):
-        return util.switchpath(util.realpath(self.image.filepath))
+        return util.finalPath(self.image.filepath)
     
     def to_string(self, list, data):
         name = self.pbrtv4NodeID
         
         res = 'Texture "{}" "{}" "imagemap"\n'.format(name, self.TextureType)
-        res +='  "string filename" [ "{}" ]\n'.format(util.switchpath(util.realpath(self.image.filepath)))
+        res +='  "string filename" [ "{}" ]\n'.format(util.finalPath(self.image.filepath))
         res +='  "float scale" [ {} ]\n'.format(self.ScaleValue)
         res +='  "string wrap" [ "{}" ]\n'.format(self.WrapType)
         
@@ -2009,7 +2009,7 @@ class pbrtv4Displacement(PBRTV4TreeNode):
         if (image.is_linked):
             node_link = image.links[0]
             curNode =  node_link.from_node
-            imagePath = util.switchpath(util.realpath(curNode.image.filepath))
+            imagePath = util.finalPath(curNode.image.filepath)
         #def CreateInfo(name, outfile, image, edge_length, scale, uvscale):
         dInfo = util.DispInfo.CreateInfo("dispParam", "", imagePath, edge_length, scale, uvscale)
         return dInfo
@@ -2070,11 +2070,11 @@ class pbrtv4AreaEmitter(PBRTV4TreeNode):
         if (image.is_linked):
             node_link = image.links[0]
             curNode =  node_link.from_node
-            imagePath = util.switchpath(util.realpath(curNode.image.filepath))
+            imagePath = util.finalPath(curNode.image.filepath)
         else:
             color = image.default_value
         #def CreateInfo(name, outfile, image, edge_length, scale, uvscale):
-        eInfo = util.MatInfo.CreateInfo(mat_name, True, color, power, self.Emission_Preset, temp)
+        eInfo = util.MatInfo.CreateInfo(mat_name, True, imagePath, color, power, self.Emission_Preset, temp)
         return eInfo
         
     def getEmissionStr(self):
@@ -2084,7 +2084,7 @@ class pbrtv4AreaEmitter(PBRTV4TreeNode):
             if (image.is_linked):
                 node_link = image.links[0]
                 curNode =  node_link.from_node
-                imagePath = util.switchpath(util.realpath(curNode.image.filepath))
+                imagePath = util.finalPath(curNode.image.filepath)
                 result += '    '+'    '+'"string filename" "{}"\n'.format(imagePath)
             else:
                 c = color.default_value
